@@ -257,14 +257,6 @@
   <div id="handui"><video id="handcam" autoplay playsinline muted></video><div id="handstat">initializing…</div></div>
   <div id="handguide">
     <div class="hg-top">
-      <svg class="hg-hand" viewBox="0 0 120 150" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M60 140 L30 88 M60 140 L48 66 M60 140 L62 62 M60 140 L78 66 M60 140 L92 78 M30 88 L14 52 M48 66 L42 14 M62 62 L62 8 M78 66 L84 14 M92 78 L108 40"/>
-        <g fill="currentColor" stroke="none">
-          <circle cx="60" cy="140" r="6"/>
-          <circle cx="14" cy="52" r="4.5"/><circle cx="42" cy="14" r="4.5"/><circle cx="62" cy="8" r="4.5"/><circle cx="84" cy="14" r="4.5"/><circle cx="108" cy="40" r="4.5"/>
-          <circle cx="30" cy="88" r="3.4"/><circle cx="48" cy="66" r="3.4"/><circle cx="62" cy="62" r="3.4"/><circle cx="78" cy="66" r="3.4"/><circle cx="92" cy="78" r="3.4"/>
-        </g>
-      </svg>
       <div class="hg-title">AirTouch</div>
     </div>
     <div class="hg-list">
@@ -289,15 +281,13 @@
   body.hands-on #handcur{display:block;}
   #handguide{position:fixed;left:22px;top:50%;transform:translateY(-50%) translateX(-14px);z-index:63;width:214px;pointer-events:none;opacity:0;transition:opacity .35s,transform .35s;font-family:var(--mono);background:linear-gradient(160deg,rgba(10,15,26,.92),rgba(8,11,20,.86));border:1px solid var(--accent);border-radius:18px;padding:16px 16px 14px;box-shadow:0 0 40px -10px var(--accent),inset 0 0 24px -18px var(--accent);backdrop-filter:blur(12px);}
   body.air-ready #handguide{opacity:1;transform:translateY(-50%) translateX(0);}
-  #handguide .hg-top{display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:12px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.09);}
-  #handguide .hg-hand{width:58px;height:73px;color:var(--accent);filter:drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 2px #fff);animation:hgpulse 2.6s ease-in-out infinite;}
-  @keyframes hgpulse{0%,100%{opacity:.85;filter:drop-shadow(0 0 6px var(--accent));}50%{opacity:1;filter:drop-shadow(0 0 14px var(--accent)) drop-shadow(0 0 3px #fff);}}
+  #handguide .hg-top{display:flex;align-items:center;justify-content:center;padding-bottom:12px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.09);}
   #handguide .hg-title{font-size:14px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#fff;text-shadow:0 0 12px var(--accent);}
   #handguide .hg-list{display:flex;flex-direction:column;gap:8px;}
   #handguide .hg-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;}
   #handguide .hg-row b{color:#fff;font-weight:700;letter-spacing:.02em;white-space:nowrap;}
   #handguide .hg-row span{color:rgba(200,214,238,.72);letter-spacing:.04em;text-transform:uppercase;font-size:9px;text-align:right;}
-  @media(max-width:640px){#handguide{left:12px;width:172px;padding:13px 12px 11px;}#handguide .hg-hand{width:46px;height:58px;}}
+  @media(max-width:640px){#handguide{left:12px;width:172px;padding:13px 12px 11px;}}
   #handcur i{display:block;width:100%;height:100%;border-radius:50%;border:2px solid #fff;box-shadow:0 0 12px #fff,0 0 30px var(--accent);transition:transform .09s,background .09s;}
   #handcur.pinch i{transform:scale(.45);background:var(--accent);box-shadow:0 0 16px var(--accent),0 0 40px var(--accent);}
   #handcur.fist i{border-style:dashed;transform:scale(.85);}
