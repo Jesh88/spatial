@@ -3122,7 +3122,7 @@ function motif(w,id){
 let glxScene=null,glxCam=null,glxRenderer=null,glxObjs=[],glxRAF=null,glxLayout='grid',glxTargets={},glxBlocks=[],glxLink='#';
 const _glxDummy=new THREE.Object3D();
 const orb={theta:0,phi:Math.PI/2,rad:2200,tTheta:0,tPhi:Math.PI/2,tRad:1900,fx:0,fy:0,fz:0,tfx:0,tfy:0,tfz:0};
-const GLX_LAYOUTS=[['world','◈ World'],['spatial','◆ Spatial'],['grid','▦ Grid'],['wave','∿ Wave']];
+const GLX_LAYOUTS=[['world','◈ World'],['spatial','◆ Spatial']];
 /* CURATION — group raw fragments into coherent highlight cards {tag,title,summary,img,datum,href} */
 function curateCards(blocks,brand,link){
   const t0=blocks.find(b=>b.type==='title');
