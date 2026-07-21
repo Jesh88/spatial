@@ -3490,7 +3490,8 @@ function buildSpatial(){
   spRings=0;
   for(let i=1;i<Math.min(cards.length,25);i++){
     const j=i-1,ring=Math.floor(j/8),jr=j%8,row=jr%2,side=((jr>>1)%2)?1:-1,k=(jr>>2)+1;
-    const ang=side*(0.37+0.315*(k-1)),y=row?1.62:3.42;
+    // amphitheater: deeper rings sit higher + half-slot staggered, so every card is on screen at once
+    const ang=side*(0.37+0.315*(k-1))+(ring%2?0.1575*side:0),y=(row?1.62:3.42)+ring*3.15;
     place(i,ang,y,2.3,2.94,1,ring);spRings=Math.max(spRings,ring);
   }
   spCamTZ=10.5;
