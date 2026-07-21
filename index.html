@@ -263,7 +263,7 @@
   #handcam{display:none;}/* camera never shown — only the neon skeleton */
   #handfx{position:fixed;inset:0;z-index:62;pointer-events:none;display:none;}
   body.hands-on #handfx{display:block;}
-  #handstat{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.55);text-align:right;max-width:240px;}
+  #handstat{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:31;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#eaf1ff;text-align:center;max-width:86vw;white-space:nowrap;background:rgba(10,14,22,.78);border:1px solid var(--accent);border-radius:999px;padding:9px 16px;box-shadow:0 0 24px -8px var(--accent);backdrop-filter:blur(8px);}
   #handcur{position:fixed;left:50%;top:50%;z-index:64;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;display:none;opacity:.9;}
   body.hands-on #handcur{display:block;}
   #handcur i{display:block;width:100%;height:100%;border-radius:50%;border:2px solid #fff;box-shadow:0 0 12px #fff,0 0 30px var(--accent);transition:transform .09s,background .09s;}
@@ -3941,20 +3941,36 @@ function handDraw(lm){
     c.fillStyle=tip?'#ffffff':acc;c.beginPath();c.arc(P[i][0],P[i][1],tip?4.5:2.6,0,7);c.fill();}
   c.shadowBlur=0;c.globalAlpha=1;
 }
+const HAND_MODEL='https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+function handFail(msg){
+  handOn=false;if(handRAF){cancelAnimationFrame(handRAF);handRAF=null;}
+  if(handVid&&handVid.srcObject){handVid.srcObject.getTracks().forEach(t=>t.stop());handVid.srcObject=null;}
+  handPinch=handFist=false;handLM=null;handDraw(null);
+  const b=document.getElementById('handBtn');if(b)b.classList.remove('on');
+  const c=document.getElementById('handcur');if(c)c.style.opacity=0;
+  handStat(msg);setTimeout(()=>{if(!handOn)document.body.classList.remove('hands-on');},7000);
+}
 async function handStart(){
   if(handOn){handStop();return;}
-  document.body.classList.add('hands-on');handStat('AirTouch — loading model…');
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){document.body.classList.add('hands-on');return handFail('AirTouch needs camera access (open over https://)');}
+  document.body.classList.add('hands-on');const b=document.getElementById('handBtn');if(b)b.classList.add('on');
+  // 1) camera FIRST — ties the permission prompt to the tap; fails fast & clearly if blocked
+  handStat('AirTouch — allow camera…');let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}}});}
+  catch(e){const n=e&&e.name;return handFail('AirTouch off — '+(n==='NotAllowedError'?'camera permission denied':n==='NotFoundError'?'no camera found':n==='NotReadableError'?'camera busy in another app':String(e&&e.message||e)).slice(0,70));}
+  handVid=document.getElementById('handcam');handVid.srcObject=stream;try{await handVid.play();}catch(_){}
+  // 2) load MediaPipe model — GPU delegate, fall back to CPU (mobile GPUs often refuse WebGL)
+  handStat('AirTouch — loading model…');
   try{
     const vis=await import(HAND_CDN+'/vision_bundle.mjs');
     const files=await vis.FilesetResolver.forVisionTasks(HAND_CDN+'/wasm');
-    handLM=await vis.HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numHands:1});
-    handStat('starting camera…');
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:640,height:480}});
-    handVid=document.getElementById('handcam');handVid.srcObject=stream;await handVid.play();
-    handOn=true;handBase=0;const b=document.getElementById('handBtn');if(b)b.classList.add('on');
-    handStat('point · pinch = click / close · fist = look · push = glide');
-    handFxSize();handLoop();
-  }catch(e){handStat('AirTouch unavailable — '+String(e&&e.message||e).slice(0,64));setTimeout(handStop,3000);}
+    const opt=d=>({baseOptions:{modelAssetPath:HAND_MODEL,delegate:d},runningMode:'VIDEO',numHands:1});
+    try{handLM=await vis.HandLandmarker.createFromOptions(files,opt('GPU'));}
+    catch(g){handStat('AirTouch — switching to CPU…');handLM=await vis.HandLandmarker.createFromOptions(files,opt('CPU'));}
+  }catch(e){return handFail('AirTouch — model failed: '+String(e&&e.message||e).slice(0,64));}
+  handOn=true;handBase=0;
+  handStat('point · pinch = click / close · fist = look · push = glide');
+  handFxSize();handLoop();
 }
 function handStop(){
   handOn=false;if(handRAF){cancelAnimationFrame(handRAF);handRAF=null;}
