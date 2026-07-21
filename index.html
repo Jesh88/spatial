@@ -4015,7 +4015,7 @@ function handLoop(){
   let res=null;try{res=handLM.detectForVideo(handVid,performance.now());}catch(e){return;}
   const cur=document.getElementById('handcur');
   if(!res||!res.landmarks||!res.landmarks.length){
-    if(performance.now()-handLastSeen>400){cur.style.opacity=.25;handDraw(null);handFist=handPinch=handOpen=false;cur.classList.remove('pinch','fist','open');}
+    if(performance.now()-handLastSeen>400){cur.style.opacity=.25;handDraw(null);handFist=handPinch=handOpen=false;handBase=0;cur.classList.remove('pinch','fist','open');}
     return;}
   handLastSeen=performance.now();cur.style.opacity=.95;
   const lm=res.landmarks[0];
@@ -4040,7 +4040,7 @@ function handLoop(){
   // 🖐️ LOOK — open palm pans the world camera directly (never touches the click pipeline → no accidental opens)
   if(gOpen&&wdOn&&!panelOpen&&handPrevX!=null){wdYawT-=(X-handPrevX)*0.006;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-(Y-handPrevY)*0.005));wdLastInput=performance.now();}
   // push / pull — glide (world only, not over a panel, not while looking)
-  if(!gOpen&&!panelOpen&&Math.abs(dz)>0.024&&wdOn)window.dispatchEvent(new WheelEvent('wheel',{deltaY:-dz*240}));
+  if(!gOpen&&!panelOpen&&Math.abs(dz)>0.018&&(wdOn||spOn))window.dispatchEvent(new WheelEvent('wheel',{deltaY:-dz*240}));
   // 🤏 OPEN (rising edge): activate whatever's under the cursor
   if(gPinch&&!handPinch){handPinch=true;
     const el=document.elementFromPoint(X,Y),btn=el&&el.closest&&el.closest('button,a,.chip,.gcard,.gdx,.gdlink');
