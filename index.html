@@ -263,12 +263,13 @@
   #handcam{display:none;}/* camera never shown — only the neon skeleton */
   #handfx{position:fixed;inset:0;z-index:62;pointer-events:none;display:none;}
   body.hands-on #handfx{display:block;}
-  #handstat{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:31;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#eaf1ff;text-align:center;max-width:86vw;white-space:nowrap;background:rgba(10,14,22,.78);border:1px solid var(--accent);border-radius:999px;padding:9px 16px;box-shadow:0 0 24px -8px var(--accent);backdrop-filter:blur(8px);}
+  #handstat{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:31;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#eaf1ff;text-align:center;max-width:min(560px,90vw);line-height:1.5;background:rgba(10,14,22,.8);border:1px solid var(--accent);border-radius:16px;padding:9px 18px;box-shadow:0 0 24px -8px var(--accent);backdrop-filter:blur(8px);}
   #handcur{position:fixed;left:50%;top:50%;z-index:64;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;display:none;opacity:.9;}
   body.hands-on #handcur{display:block;}
   #handcur i{display:block;width:100%;height:100%;border-radius:50%;border:2px solid #fff;box-shadow:0 0 12px #fff,0 0 30px var(--accent);transition:transform .09s,background .09s;}
-  #handcur.pinch i{transform:scale(.5);background:var(--accent);}
-  #handcur.fist i{border-style:dashed;transform:scale(.8);}
+  #handcur.pinch i{transform:scale(.45);background:var(--accent);box-shadow:0 0 16px var(--accent),0 0 40px var(--accent);}
+  #handcur.fist i{border-style:dashed;transform:scale(.85);}
+  #handcur.open i{transform:scale(1.7);border-color:var(--accent);opacity:.55;}
   .glxbtn.on{border-color:var(--accent);color:#fff;box-shadow:0 0 18px -6px var(--accent);}
   </style>
   <style>
@@ -3917,7 +3918,7 @@ addEventListener('pointermove',e=>{if(!lndOn)return;lndMX=(e.clientX/innerWidth-
 addEventListener('resize',()=>{if(lndOn&&lndComp){lndCam.aspect=innerWidth/innerHeight;lndCam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);lndComp.setSize(innerWidth,innerHeight);if(lndGrade)lndGrade.uniforms.uRes.value.set(innerWidth,innerHeight);}});
 
 /* ===================== ✋ HAND TRACKING — front camera → point · pinch · fist · push ===================== */
-let handOn=false,handLM=null,handVid=null,handRAF=null,handPinch=false,handFist=false,handBase=0,handSm={x:.5,y:.5},handLastSeen=0;
+let handOn=false,handLM=null,handVid=null,handRAF=null,handPinch=false,handFist=false,handOpen=false,handBase=0,handSm={x:.5,y:.5},handLastSeen=0,handPrevX=null,handPrevY=null;
 const HAND_CDN='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 function handStat(s){const e=document.getElementById('handstat');if(e)e.textContent=s;}
 /* Tron-style neon hand skeleton, drawn over the world at the hand's real screen position */
@@ -3969,7 +3970,7 @@ async function handStart(){
     catch(g){handStat('AirTouch — switching to CPU…');handLM=await vis.HandLandmarker.createFromOptions(files,opt('CPU'));}
   }catch(e){return handFail('AirTouch — model failed: '+String(e&&e.message||e).slice(0,64));}
   handOn=true;handBase=0;
-  handStat('point · pinch = click / close · fist = look · push = glide');
+  handStat('👉 point  ·  🤏 pinch = OPEN  ·  🖐 palm = CLOSE  ·  ✊ fist = look  ·  push = glide');
   handFxSize();handLoop();
 }
 function handStop(){
@@ -3987,8 +3988,7 @@ function handLoop(){
   let res=null;try{res=handLM.detectForVideo(handVid,performance.now());}catch(e){return;}
   const cur=document.getElementById('handcur');
   if(!res||!res.landmarks||!res.landmarks.length){
-    if(performance.now()-handLastSeen>400){cur.style.opacity=.25;handDraw(null);
-      if(handFist||handPinch){window.dispatchEvent(new PointerEvent('pointerup',{clientX:handSm.x*innerWidth,clientY:handSm.y*innerHeight,bubbles:true}));handFist=handPinch=false;cur.classList.remove('pinch','fist');}}
+    if(performance.now()-handLastSeen>400){cur.style.opacity=.25;handDraw(null);handFist=handPinch=handOpen=false;cur.classList.remove('pinch','fist','open');}
     return;}
   handLastSeen=performance.now();cur.style.opacity=.95;
   const lm=res.landmarks[0];
@@ -3998,28 +3998,35 @@ function handLoop(){
   handSm.x+=(ix-handSm.x)*0.35;handSm.y+=(iy-handSm.y)*0.35;
   const X=handSm.x*innerWidth,Y=handSm.y*innerHeight;
   cur.style.left=X+'px';cur.style.top=Y+'px';
-  // hand scale (wrist→middle knuckle) — push toward camera = glide forward
-  const scale=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y);
-  if(!handBase)handBase=scale;
-  const dz=scale-handBase;
-  if(Math.abs(dz)>0.022&&wdOn)window.dispatchEvent(new WheelEvent('wheel',{deltaY:-dz*240}));
-  // pinch = thumb tip ↔ index tip (normalized by hand size)
-  const pinch=(Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y)/Math.max(scale,1e-4))<0.55;
-  // fist = fingertips folded to palm
-  let ext=0;[8,12,16,20].forEach(i=>{ext+=Math.hypot(lm[i].x-lm[9].x,lm[i].y-lm[9].y);});ext/=4*Math.max(scale,1e-4);
-  const fist=ext<1.0&&!pinch;
-  // hover / drag-look flow through the real pointer pipeline (works in every view)
+  const scale=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y);if(!handBase)handBase=scale;const dz=scale-handBase;
+  // ---- ONE gesture = ONE job (finger-extension geometry) ----
+  const dW=i=>Math.hypot(lm[i].x-lm[0].x,lm[i].y-lm[0].y);// distance from wrist
+  const E=[[8,6],[12,10],[16,14],[20,18]].map(([t,p])=>dW(t)>dW(p)*1.06);// index,middle,ring,pinky extended?
+  const pinchD=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y)/Math.max(scale,1e-4);
+  const gOpen = E[0]&&E[1]&&E[2]&&E[3];                          // 🖐️ all fingers spread → CLOSE
+  const gPinch= !gOpen && pinchD<0.5 && (E[1]||E[2]||E[3]);      // 🤏 thumb+index meet (hand not a fist) → OPEN
+  const gFist = !gPinch && !E[0]&&!E[1]&&!E[2]&&!E[3];           // ✊ all curled → LOOK
+  cur.classList.toggle('pinch',gPinch);cur.classList.toggle('fist',gFist);cur.classList.toggle('open',gOpen);
+  const panelOpen=document.getElementById('glxdetail').classList.contains('show')||document.getElementById('detail').classList.contains('show')||(typeof searchActive!=='undefined'&&searchActive);
+  // hover (aim) — always, so pinch knows what it's pointing at
   window.dispatchEvent(new PointerEvent('pointermove',{clientX:X,clientY:Y,bubbles:true}));
-  if(fist&&!handFist){handFist=true;cur.classList.add('fist');window.dispatchEvent(new PointerEvent('pointerdown',{clientX:X,clientY:Y,bubbles:true}));}
-  else if(!fist&&handFist){handFist=false;cur.classList.remove('fist');window.dispatchEvent(new PointerEvent('pointerup',{clientX:X,clientY:Y,bubbles:true}));}
-  if(pinch&&!handPinch){handPinch=true;cur.classList.add('pinch');
-    const el=document.elementFromPoint(X,Y);const btn=el&&el.closest&&el.closest('button,a,.chip,.gcard,.gdx,.gdlink,.dx');
-    if(btn)btn.click();
-    else if(document.getElementById('glxdetail').classList.contains('show'))closeGlxDetail();// pinch anywhere = close the open panel
+  // ✊ LOOK — fist pans the world camera directly (never touches the click pipeline → no accidental opens)
+  if(gFist&&wdOn&&!panelOpen&&handPrevX!=null){wdYawT-=(X-handPrevX)*0.006;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-(Y-handPrevY)*0.005));wdLastInput=performance.now();}
+  // push / pull — glide (world only, not over a panel)
+  if(!gFist&&!panelOpen&&Math.abs(dz)>0.024&&wdOn)window.dispatchEvent(new WheelEvent('wheel',{deltaY:-dz*240}));
+  // 🤏 OPEN (rising edge): activate whatever's under the cursor
+  if(gPinch&&!handPinch){handPinch=true;
+    const el=document.elementFromPoint(X,Y),btn=el&&el.closest&&el.closest('button,a,.chip,.gcard,.gdx,.gdlink');
+    if(btn)btn.click();                                          // a real control (link / New / view button)
+    else if(!panelOpen){if(wdOn&&wdHover>=0)openGlxDetail(wdHover);else if(spOn&&spHover>=0)openGlxDetail(spHover);}// a landmark → open its card
+  }else if(!gPinch)handPinch=false;
+  // 🖐️ CLOSE (rising edge): dismiss any open card
+  if(gOpen&&!handOpen){handOpen=true;
+    if(document.getElementById('glxdetail').classList.contains('show'))closeGlxDetail();
     else if(document.getElementById('detail').classList.contains('show'))closeDetail();
     else if(typeof searchActive!=='undefined'&&searchActive)closeSearch();
-    else{window.dispatchEvent(new PointerEvent('pointerdown',{clientX:X,clientY:Y,bubbles:true}));window.dispatchEvent(new PointerEvent('pointerup',{clientX:X,clientY:Y,bubbles:true}));}}
-  else if(!pinch&&handPinch){handPinch=false;cur.classList.remove('pinch');}
+  }else if(!gOpen)handOpen=false;
+  handFist=gFist;handPrevX=X;handPrevY=Y;
 }
 document.getElementById('handBtn').onclick=handStart;
 
