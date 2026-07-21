@@ -230,7 +230,7 @@
     <div class="glxbrand"><span class="gdot"></span><b id="glxTitle">DEPTH</b><span id="glxSub"></span></div>
     <div class="glxforms" id="glxForms"></div>
     <div style="display:flex;gap:8px">
-      <button class="glxbtn" id="handBtn">✦ AirTouch</button>
+      <button class="glxbtn airbtn" id="handBtn"><svg class="handglyph" viewBox="0 0 24 26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 24 L7 15 M12 24 L9.5 12 M12 24 L12 11 M12 24 L14.5 12 M12 24 L16.5 13 M7 15 L4.3 9.5 M9.5 12 L8.4 2.6 M12 11 L12 1.8 M14.5 12 L15.6 2.6 M16.5 13 L18.7 5.6"/><g fill="currentColor" stroke="none"><circle cx="12" cy="24" r="1.7"/><circle cx="4.3" cy="9.5" r="1.3"/><circle cx="8.4" cy="2.6" r="1.3"/><circle cx="12" cy="1.8" r="1.3"/><circle cx="15.6" cy="2.6" r="1.3"/><circle cx="18.7" cy="5.6" r="1.3"/><circle cx="7" cy="15" r="1"/><circle cx="9.5" cy="12" r="1"/><circle cx="12" cy="11" r="1"/><circle cx="14.5" cy="12" r="1"/><circle cx="16.5" cy="13" r="1"/></g></svg>AirTouch</button>
       <button class="glxbtn ghost" id="glxNew">↩ New</button>
     </div>
   </div>
@@ -255,6 +255,26 @@
   <div id="loadbar"><i></i></div>
   <!-- ✋ hand tracking (front camera, on-device) -->
   <div id="handui"><video id="handcam" autoplay playsinline muted></video><div id="handstat">initializing…</div></div>
+  <div id="handguide">
+    <div class="hg-top">
+      <svg class="hg-hand" viewBox="0 0 120 150" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M60 140 L30 88 M60 140 L48 66 M60 140 L62 62 M60 140 L78 66 M60 140 L92 78 M30 88 L14 52 M48 66 L42 14 M62 62 L62 8 M78 66 L84 14 M92 78 L108 40"/>
+        <g fill="currentColor" stroke="none">
+          <circle cx="60" cy="140" r="6"/>
+          <circle cx="14" cy="52" r="4.5"/><circle cx="42" cy="14" r="4.5"/><circle cx="62" cy="8" r="4.5"/><circle cx="84" cy="14" r="4.5"/><circle cx="108" cy="40" r="4.5"/>
+          <circle cx="30" cy="88" r="3.4"/><circle cx="48" cy="66" r="3.4"/><circle cx="62" cy="62" r="3.4"/><circle cx="78" cy="66" r="3.4"/><circle cx="92" cy="78" r="3.4"/>
+        </g>
+      </svg>
+      <div class="hg-title">AirTouch</div>
+    </div>
+    <div class="hg-list">
+      <div class="hg-row"><b>🤏 Pinch</b><span>Open card</span></div>
+      <div class="hg-row"><b>✊ Fist</b><span>Close card</span></div>
+      <div class="hg-row"><b>🖐 Open palm</b><span>Look around</span></div>
+      <div class="hg-row"><b>👉 Point</b><span>Aim cursor</span></div>
+      <div class="hg-row"><b>✋ Push / pull</b><span>Glide in / out</span></div>
+    </div>
+  </div>
   <canvas id="handfx"></canvas>
   <div id="handcur"><i></i></div>
   <style>
@@ -264,8 +284,20 @@
   #handfx{position:fixed;inset:0;z-index:62;pointer-events:none;display:none;}
   body.hands-on #handfx{display:block;}
   #handstat{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:31;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#eaf1ff;text-align:center;max-width:min(560px,90vw);line-height:1.5;background:rgba(10,14,22,.8);border:1px solid var(--accent);border-radius:16px;padding:9px 18px;box-shadow:0 0 24px -8px var(--accent);backdrop-filter:blur(8px);}
+  #handstat:empty{display:none;}
   #handcur{position:fixed;left:50%;top:50%;z-index:64;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;display:none;opacity:.9;}
   body.hands-on #handcur{display:block;}
+  #handguide{position:fixed;left:22px;top:50%;transform:translateY(-50%) translateX(-14px);z-index:63;width:214px;pointer-events:none;opacity:0;transition:opacity .35s,transform .35s;font-family:var(--mono);background:linear-gradient(160deg,rgba(10,15,26,.92),rgba(8,11,20,.86));border:1px solid var(--accent);border-radius:18px;padding:16px 16px 14px;box-shadow:0 0 40px -10px var(--accent),inset 0 0 24px -18px var(--accent);backdrop-filter:blur(12px);}
+  body.air-ready #handguide{opacity:1;transform:translateY(-50%) translateX(0);}
+  #handguide .hg-top{display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:12px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.09);}
+  #handguide .hg-hand{width:58px;height:73px;color:var(--accent);filter:drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 2px #fff);animation:hgpulse 2.6s ease-in-out infinite;}
+  @keyframes hgpulse{0%,100%{opacity:.85;filter:drop-shadow(0 0 6px var(--accent));}50%{opacity:1;filter:drop-shadow(0 0 14px var(--accent)) drop-shadow(0 0 3px #fff);}}
+  #handguide .hg-title{font-size:14px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#fff;text-shadow:0 0 12px var(--accent);}
+  #handguide .hg-list{display:flex;flex-direction:column;gap:8px;}
+  #handguide .hg-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;}
+  #handguide .hg-row b{color:#fff;font-weight:700;letter-spacing:.02em;white-space:nowrap;}
+  #handguide .hg-row span{color:rgba(200,214,238,.72);letter-spacing:.04em;text-transform:uppercase;font-size:9px;text-align:right;}
+  @media(max-width:640px){#handguide{left:12px;width:172px;padding:13px 12px 11px;}#handguide .hg-hand{width:46px;height:58px;}}
   #handcur i{display:block;width:100%;height:100%;border-radius:50%;border:2px solid #fff;box-shadow:0 0 12px #fff,0 0 30px var(--accent);transition:transform .09s,background .09s;}
   #handcur.pinch i{transform:scale(.45);background:var(--accent);box-shadow:0 0 16px var(--accent),0 0 40px var(--accent);}
   #handcur.fist i{border-style:dashed;transform:scale(.85);}
@@ -309,6 +341,11 @@
   .glxforms button:not(.on):hover{color:#fff;background:rgba(255,255,255,.06);}
   .glxbtn{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:rgba(226,236,252,.7);background:rgba(14,18,27,.7);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:9px 16px;cursor:pointer;backdrop-filter:blur(10px);}
   .glxbtn:hover{color:#fff;border-color:var(--accent);}
+  .airbtn{display:inline-flex;align-items:center;gap:7px;font-weight:800;color:#eaf1ff;border-color:rgba(255,255,255,.16);}
+  .airbtn .handglyph{width:16px;height:17px;color:var(--accent);filter:drop-shadow(0 0 4px var(--accent));transition:filter .3s,transform .3s;}
+  .airbtn:hover .handglyph{transform:scale(1.08);filter:drop-shadow(0 0 7px var(--accent)) drop-shadow(0 0 2px #fff);}
+  .airbtn.on{color:#fff;border-color:var(--accent);box-shadow:0 0 22px -6px var(--accent);}
+  .airbtn.on .handglyph{color:#fff;filter:drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 3px #fff);}
   #glxhint{position:fixed;bottom:22px;left:0;right:0;z-index:6;display:none;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:rgba(220,230,245,.4);text-transform:uppercase;pointer-events:none;transition:opacity .5s;}
   /* ---- cards (real DOM, crisp) ---- */
   .gcard{box-sizing:border-box;border-radius:16px;overflow:hidden;background:rgba(18,23,34,.82);border:1px solid rgba(255,255,255,.09);
@@ -3946,7 +3983,7 @@ const HAND_MODEL='https://storage.googleapis.com/mediapipe-models/hand_landmarke
 function handFail(msg){
   handOn=false;if(handRAF){cancelAnimationFrame(handRAF);handRAF=null;}
   if(handVid&&handVid.srcObject){handVid.srcObject.getTracks().forEach(t=>t.stop());handVid.srcObject=null;}
-  handPinch=handFist=false;handLM=null;handDraw(null);
+  handPinch=handFist=false;handLM=null;handDraw(null);document.body.classList.remove('air-ready');
   const b=document.getElementById('handBtn');if(b)b.classList.remove('on');
   const c=document.getElementById('handcur');if(c)c.style.opacity=0;
   handStat(msg);setTimeout(()=>{if(!handOn)document.body.classList.remove('hands-on');},7000);
@@ -3970,7 +4007,7 @@ async function handStart(){
     catch(g){handStat('AirTouch — switching to CPU…');handLM=await vis.HandLandmarker.createFromOptions(files,opt('CPU'));}
   }catch(e){return handFail('AirTouch — model failed: '+String(e&&e.message||e).slice(0,64));}
   handOn=true;handBase=0;
-  handStat('👉 point  ·  🤏 pinch = OPEN  ·  🖐 palm = CLOSE  ·  ✊ fist = look  ·  push = glide');
+  handStat('');document.body.classList.add('air-ready');
   handFxSize();handLoop();
 }
 function handStop(){
@@ -3978,7 +4015,7 @@ function handStop(){
   if(handVid&&handVid.srcObject){handVid.srcObject.getTracks().forEach(t=>t.stop());handVid.srcObject=null;}
   if(handFist||handPinch)window.dispatchEvent(new PointerEvent('pointerup',{clientX:handSm.x*innerWidth,clientY:handSm.y*innerHeight,bubbles:true}));
   handPinch=handFist=false;handLM=null;
-  document.body.classList.remove('hands-on');const b=document.getElementById('handBtn');if(b)b.classList.remove('on');
+  document.body.classList.remove('hands-on','air-ready');const b=document.getElementById('handBtn');if(b)b.classList.remove('on');
   const c=document.getElementById('handcur');if(c)c.classList.remove('pinch','fist');
   handDraw(null);
 }
@@ -4003,30 +4040,30 @@ function handLoop(){
   const dW=i=>Math.hypot(lm[i].x-lm[0].x,lm[i].y-lm[0].y);// distance from wrist
   const E=[[8,6],[12,10],[16,14],[20,18]].map(([t,p])=>dW(t)>dW(p)*1.06);// index,middle,ring,pinky extended?
   const pinchD=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y)/Math.max(scale,1e-4);
-  const gOpen = E[0]&&E[1]&&E[2]&&E[3];                          // 🖐️ all fingers spread → CLOSE
+  const gOpen = E[0]&&E[1]&&E[2]&&E[3];                          // 🖐️ all fingers spread → LOOK
   const gPinch= !gOpen && pinchD<0.5 && (E[1]||E[2]||E[3]);      // 🤏 thumb+index meet (hand not a fist) → OPEN
-  const gFist = !gPinch && !E[0]&&!E[1]&&!E[2]&&!E[3];           // ✊ all curled → LOOK
+  const gFist = !gPinch && !E[0]&&!E[1]&&!E[2]&&!E[3];           // ✊ all curled → CLOSE
   cur.classList.toggle('pinch',gPinch);cur.classList.toggle('fist',gFist);cur.classList.toggle('open',gOpen);
   const panelOpen=document.getElementById('glxdetail').classList.contains('show')||document.getElementById('detail').classList.contains('show')||(typeof searchActive!=='undefined'&&searchActive);
   // hover (aim) — always, so pinch knows what it's pointing at
   window.dispatchEvent(new PointerEvent('pointermove',{clientX:X,clientY:Y,bubbles:true}));
-  // ✊ LOOK — fist pans the world camera directly (never touches the click pipeline → no accidental opens)
-  if(gFist&&wdOn&&!panelOpen&&handPrevX!=null){wdYawT-=(X-handPrevX)*0.006;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-(Y-handPrevY)*0.005));wdLastInput=performance.now();}
-  // push / pull — glide (world only, not over a panel)
-  if(!gFist&&!panelOpen&&Math.abs(dz)>0.024&&wdOn)window.dispatchEvent(new WheelEvent('wheel',{deltaY:-dz*240}));
+  // 🖐️ LOOK — open palm pans the world camera directly (never touches the click pipeline → no accidental opens)
+  if(gOpen&&wdOn&&!panelOpen&&handPrevX!=null){wdYawT-=(X-handPrevX)*0.006;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-(Y-handPrevY)*0.005));wdLastInput=performance.now();}
+  // push / pull — glide (world only, not over a panel, not while looking)
+  if(!gOpen&&!panelOpen&&Math.abs(dz)>0.024&&wdOn)window.dispatchEvent(new WheelEvent('wheel',{deltaY:-dz*240}));
   // 🤏 OPEN (rising edge): activate whatever's under the cursor
   if(gPinch&&!handPinch){handPinch=true;
     const el=document.elementFromPoint(X,Y),btn=el&&el.closest&&el.closest('button,a,.chip,.gcard,.gdx,.gdlink');
     if(btn)btn.click();                                          // a real control (link / New / view button)
     else if(!panelOpen){if(wdOn&&wdHover>=0)openGlxDetail(wdHover);else if(spOn&&spHover>=0)openGlxDetail(spHover);}// a landmark → open its card
   }else if(!gPinch)handPinch=false;
-  // 🖐️ CLOSE (rising edge): dismiss any open card
-  if(gOpen&&!handOpen){handOpen=true;
+  // ✊ CLOSE (rising edge): dismiss any open card
+  if(gFist&&!handFist){handFist=true;
     if(document.getElementById('glxdetail').classList.contains('show'))closeGlxDetail();
     else if(document.getElementById('detail').classList.contains('show'))closeDetail();
     else if(typeof searchActive!=='undefined'&&searchActive)closeSearch();
-  }else if(!gOpen)handOpen=false;
-  handFist=gFist;handPrevX=X;handPrevY=Y;
+  }else if(!gFist)handFist=false;
+  handOpen=gOpen;handPrevX=X;handPrevY=Y;
 }
 document.getElementById('handBtn').onclick=handStart;
 
