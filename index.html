@@ -261,8 +261,8 @@
     </div>
     <div class="hg-list">
       <div class="hg-row"><b>🤏 Pinch</b><span>Open card</span></div>
-      <div class="hg-row"><b>✊ Fist</b><span>Close card</span></div>
-      <div class="hg-row"><b>🖐 Open palm</b><span>Look around</span></div>
+      <div class="hg-row"><b>🖐 Open palm</b><span>Close card</span></div>
+      <div class="hg-row"><b>✊ Fist</b><span>Look around</span></div>
       <div class="hg-row"><b>👉 Point</b><span>Aim cursor</span></div>
       <div class="hg-row"><b>✋ Push / pull</b><span>Glide in / out</span></div>
     </div>
@@ -4030,30 +4030,30 @@ function handLoop(){
   const dW=i=>Math.hypot(lm[i].x-lm[0].x,lm[i].y-lm[0].y);// distance from wrist
   const E=[[8,6],[12,10],[16,14],[20,18]].map(([t,p])=>dW(t)>dW(p)*1.06);// index,middle,ring,pinky extended?
   const pinchD=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y)/Math.max(scale,1e-4);
-  const gOpen = E[0]&&E[1]&&E[2]&&E[3];                          // 🖐️ all fingers spread → LOOK
+  const gOpen = E[0]&&E[1]&&E[2]&&E[3];                          // 🖐️ all fingers spread → CLOSE
   const gPinch= !gOpen && pinchD<0.5 && (E[1]||E[2]||E[3]);      // 🤏 thumb+index meet (hand not a fist) → OPEN
-  const gFist = !gPinch && !E[0]&&!E[1]&&!E[2]&&!E[3];           // ✊ all curled → CLOSE
+  const gFist = !gPinch && !E[0]&&!E[1]&&!E[2]&&!E[3];           // ✊ all curled → LOOK
   cur.classList.toggle('pinch',gPinch);cur.classList.toggle('fist',gFist);cur.classList.toggle('open',gOpen);
   const panelOpen=document.getElementById('glxdetail').classList.contains('show')||document.getElementById('detail').classList.contains('show')||(typeof searchActive!=='undefined'&&searchActive);
   // hover (aim) — always, so pinch knows what it's pointing at
   window.dispatchEvent(new PointerEvent('pointermove',{clientX:X,clientY:Y,bubbles:true}));
-  // 🖐️ LOOK — open palm pans the world camera directly (never touches the click pipeline → no accidental opens)
-  if(gOpen&&wdOn&&!panelOpen&&handPrevX!=null){wdYawT-=(X-handPrevX)*0.006;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-(Y-handPrevY)*0.005));wdLastInput=performance.now();}
+  // ✊ LOOK — fist pans the world camera directly (never touches the click pipeline → no accidental opens)
+  if(gFist&&wdOn&&!panelOpen&&handPrevX!=null){wdYawT-=(X-handPrevX)*0.006;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-(Y-handPrevY)*0.005));wdLastInput=performance.now();}
   // push / pull — glide (world only, not over a panel, not while looking)
-  if(!gOpen&&!panelOpen&&Math.abs(dz)>0.018&&(wdOn||spOn))window.dispatchEvent(new WheelEvent('wheel',{deltaY:-dz*240}));
+  if(!gFist&&!panelOpen&&Math.abs(dz)>0.018&&(wdOn||spOn))window.dispatchEvent(new WheelEvent('wheel',{deltaY:-dz*240}));
   // 🤏 OPEN (rising edge): activate whatever's under the cursor
   if(gPinch&&!handPinch){handPinch=true;
     const el=document.elementFromPoint(X,Y),btn=el&&el.closest&&el.closest('button,a,.chip,.gcard,.gdx,.gdlink');
     if(btn)btn.click();                                          // a real control (link / New / view button)
     else if(!panelOpen){if(wdOn&&wdHover>=0)openGlxDetail(wdHover);else if(spOn&&spHover>=0)openGlxDetail(spHover);}// a landmark → open its card
   }else if(!gPinch)handPinch=false;
-  // ✊ CLOSE (rising edge): dismiss any open card
-  if(gFist&&!handFist){handFist=true;
+  // 🖐️ CLOSE (rising edge): dismiss any open card
+  if(gOpen&&!handOpen){handOpen=true;
     if(document.getElementById('glxdetail').classList.contains('show'))closeGlxDetail();
     else if(document.getElementById('detail').classList.contains('show'))closeDetail();
     else if(typeof searchActive!=='undefined'&&searchActive)closeSearch();
-  }else if(!gFist)handFist=false;
-  handOpen=gOpen;handPrevX=X;handPrevY=Y;
+  }else if(!gOpen)handOpen=false;
+  handFist=gFist;handPrevX=X;handPrevY=Y;
 }
 document.getElementById('handBtn').onclick=handStart;
 
