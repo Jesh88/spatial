@@ -3945,7 +3945,7 @@ addEventListener('pointermove',e=>{if(!lndOn)return;lndMX=(e.clientX/innerWidth-
 addEventListener('resize',()=>{if(lndOn&&lndComp){lndCam.aspect=innerWidth/innerHeight;lndCam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);lndComp.setSize(innerWidth,innerHeight);if(lndGrade)lndGrade.uniforms.uRes.value.set(innerWidth,innerHeight);}});
 
 /* ===================== ✋ HAND TRACKING — front camera → point · pinch · fist · push ===================== */
-let handOn=false,handLM=null,handVid=null,handRAF=null,handPinch=false,handFist=false,handOpen=false,handBase=0,handSm={x:.5,y:.5},handLastSeen=0,handPrevX=null,handPrevY=null;
+let handOn=false,handLM=null,handVid=null,handRAF=null,handPinch=false,handFist=false,handOpen=false,handBase=0,handSm={x:.5,y:.5},handLastSeen=0,handPrevX=null,handPrevY=null,handScaleSm=0,handGest='',handGestT=0;
 const HAND_CDN='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 function handStat(s){const e=document.getElementById('handstat');if(e)e.textContent=s;}
 /* Tron-style neon hand skeleton, drawn over the world at the hand's real screen position */
@@ -3996,7 +3996,7 @@ async function handStart(){
     try{handLM=await vis.HandLandmarker.createFromOptions(files,opt('GPU'));}
     catch(g){handStat('AirTouch — switching to CPU…');handLM=await vis.HandLandmarker.createFromOptions(files,opt('CPU'));}
   }catch(e){return handFail('AirTouch — model failed: '+String(e&&e.message||e).slice(0,64));}
-  handOn=true;handBase=0;
+  handOn=true;handBase=0;handScaleSm=0;handGest='';
   handStat('');document.body.classList.add('air-ready');
   handFxSize();handLoop();
 }
@@ -4015,7 +4015,7 @@ function handLoop(){
   let res=null;try{res=handLM.detectForVideo(handVid,performance.now());}catch(e){return;}
   const cur=document.getElementById('handcur');
   if(!res||!res.landmarks||!res.landmarks.length){
-    if(performance.now()-handLastSeen>400){cur.style.opacity=.25;handDraw(null);handFist=handPinch=handOpen=false;handBase=0;cur.classList.remove('pinch','fist','open');}
+    if(performance.now()-handLastSeen>400){cur.style.opacity=.25;handDraw(null);handFist=handPinch=handOpen=false;handBase=0;handScaleSm=0;handGest='';cur.classList.remove('pinch','fist','open');}
     return;}
   handLastSeen=performance.now();cur.style.opacity=.95;
   const lm=res.landmarks[0];
@@ -4025,7 +4025,9 @@ function handLoop(){
   handSm.x+=(ix-handSm.x)*0.35;handSm.y+=(iy-handSm.y)*0.35;
   const X=handSm.x*innerWidth,Y=handSm.y*innerHeight;
   cur.style.left=X+'px';cur.style.top=Y+'px';
-  const scale=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y);if(!handBase)handBase=scale;const dz=scale-handBase;
+  const scaleRaw=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y);
+  handScaleSm=handScaleSm?handScaleSm+(scaleRaw-handScaleSm)*0.25:scaleRaw;// smoothed depth signal (kills frame jitter)
+  const scale=handScaleSm;
   // ---- ONE gesture = ONE job (finger-extension geometry) ----
   const dW=i=>Math.hypot(lm[i].x-lm[0].x,lm[i].y-lm[0].y);// distance from wrist
   const E=[[8,6],[12,10],[16,14],[20,18]].map(([t,p])=>dW(t)>dW(p)*1.06);// index,middle,ring,pinky extended?
@@ -4034,13 +4036,20 @@ function handLoop(){
   const gPinch= !gOpen && pinchD<0.5 && (E[1]||E[2]||E[3]);      // 🤏 thumb+index meet (hand not a fist) → OPEN
   const gFist = !gPinch && !E[0]&&!E[1]&&!E[2]&&!E[3];           // ✊ all curled → LOOK
   cur.classList.toggle('pinch',gPinch);cur.classList.toggle('fist',gFist);cur.classList.toggle('open',gOpen);
+  // depth reference: re-lock when the pose changes (pose swaps distort apparent hand size) + slow recenter inside deadzone (no drift)
+  const gest=gOpen?'open':gPinch?'pinch':gFist?'fist':'idle';
+  if(gest!==handGest){handGest=gest;handGestT=performance.now();}
+  if(!handBase||performance.now()-handGestT<250)handBase=scale;// track, don't measure, while a pose change settles
+  const dz=scale-handBase;
+  if(Math.abs(dz)<0.012)handBase+=(scale-handBase)*0.06;
   const panelOpen=document.getElementById('glxdetail').classList.contains('show')||document.getElementById('detail').classList.contains('show')||(typeof searchActive!=='undefined'&&searchActive);
   // hover (aim) — always, so pinch knows what it's pointing at
   window.dispatchEvent(new PointerEvent('pointermove',{clientX:X,clientY:Y,bubbles:true}));
   // ✊ LOOK — fist pans the world camera directly (never touches the click pipeline → no accidental opens)
   if(gFist&&wdOn&&!panelOpen&&handPrevX!=null){wdYawT-=(X-handPrevX)*0.006;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-(Y-handPrevY)*0.005));wdLastInput=performance.now();}
-  // push / pull — glide (world only, not over a panel, not while looking)
-  if(!gFist&&!panelOpen&&Math.abs(dz)>0.018&&(wdOn||spOn))window.dispatchEvent(new WheelEvent('wheel',{deltaY:-dz*240}));
+  // ✋ push / pull — glide (not while looking/clicking; 250ms settle after a pose change so pose swaps never read as depth)
+  if(!gFist&&!gPinch&&!panelOpen&&(wdOn||spOn)&&performance.now()-handGestT>250&&Math.abs(dz)>0.018)
+    window.dispatchEvent(new WheelEvent('wheel',{deltaY:-(dz-Math.sign(dz)*0.018)*420}));
   // 🤏 OPEN (rising edge): activate whatever's under the cursor
   if(gPinch&&!handPinch){handPinch=true;
     const el=document.elementFromPoint(X,Y),btn=el&&el.closest&&el.closest('button,a,.chip,.gcard,.gdx,.gdlink');
