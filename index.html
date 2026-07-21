@@ -230,7 +230,7 @@
     <div class="glxbrand"><span class="gdot"></span><b id="glxTitle">DEPTH</b><span id="glxSub"></span></div>
     <div class="glxforms" id="glxForms"></div>
     <div style="display:flex;gap:8px">
-      <button class="glxbtn" id="handBtn">✋ Hands</button>
+      <button class="glxbtn" id="handBtn">✦ AirTouch</button>
       <button class="glxbtn ghost" id="glxNew">↩ New</button>
     </div>
   </div>
@@ -3943,7 +3943,7 @@ function handDraw(lm){
 }
 async function handStart(){
   if(handOn){handStop();return;}
-  document.body.classList.add('hands-on');handStat('loading hand model…');
+  document.body.classList.add('hands-on');handStat('AirTouch — loading model…');
   try{
     const vis=await import(HAND_CDN+'/vision_bundle.mjs');
     const files=await vis.FilesetResolver.forVisionTasks(HAND_CDN+'/wasm');
@@ -3954,7 +3954,7 @@ async function handStart(){
     handOn=true;handBase=0;const b=document.getElementById('handBtn');if(b)b.classList.add('on');
     handStat('point · pinch = click / close · fist = look · push = glide');
     handFxSize();handLoop();
-  }catch(e){handStat('hands unavailable — '+String(e&&e.message||e).slice(0,64));setTimeout(handStop,3000);}
+  }catch(e){handStat('AirTouch unavailable — '+String(e&&e.message||e).slice(0,64));setTimeout(handStop,3000);}
 }
 function handStop(){
   handOn=false;if(handRAF){cancelAnimationFrame(handRAF);handRAF=null;}
