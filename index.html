@@ -3745,7 +3745,8 @@ function wdHT(x,z){return wdH(x,z)*wdAmp;}
 /* biome selection — the site's character picks its world (or the builder forces one) */
 let wdForcedTheme=null;// set by the builder; null → auto-pick from site character
 const WD_THEME_LABEL={dunes:'Dusk Dunes',peaks:'Midnight Peaks',neon:'Neon Expanse',vale:'Verdant Vale',isles:'Glass Isles','void':'Event Horizon',
-  gallery:'Null Gallery',terrace:'Amber Terrace',stage:'Pulse Stage',bazaar:'Night Bazaar',summit:'Frost Summit',archive:'Ivory Archive'};
+  gallery:'Null Gallery',terrace:'Amber Terrace',stage:'Pulse Stage',bazaar:'Night Bazaar',summit:'Frost Summit',archive:'Ivory Archive',
+  dawn:'Dawn Market',prestige:'Maison Prestige',impulse:'Impulse Arena',warehouse:'Iron Warehouse',motion:'Kinetic Motion',ride:'Ridge Trail'};
 /* theme config — data table consumed by buildWorld's generators (colors derive from the live accent) */
 function themeCfg(key,accC){
   const mix=(c,h,k)=>new THREE.Color(c).lerp(new THREE.Color(h),k);
@@ -3773,7 +3774,20 @@ function themeCfg(key,accC){
     summit:{amp:2.6,fog:0.012,exp:1.02,cel:'moon',land:'obsidian',scat:'rock',part:'snow',aurora:1,banner:1,shoot:1,
       sky:['#020310','#071026','#12244a','#'+mix(accC,0x2a4a7a,.55).getHexString()],fogC:new THREE.Color(0x0c1830),terr:[0xdfe8f2,new THREE.Color(0x9fb4cc)]},
     archive:{amp:0.6,fog:0.006,exp:1.22,cel:'sun',land:'crystal',scat:'reed',part:'pollen',
-      sky:['#1a2a40','#3a5a78','#'+mix(accC,0x9ab4c8,.4).getHexString(),'#e8d8b8'],fogC:new THREE.Color(0x4a6580),terr:[0xcfd8dc,new THREE.Color(0xaab8c2)]}
+      sky:['#1a2a40','#3a5a78','#'+mix(accC,0x9ab4c8,.4).getHexString(),'#e8d8b8'],fogC:new THREE.Color(0x4a6580),terr:[0xcfd8dc,new THREE.Color(0xaab8c2)]},
+    /* shopify-theme-inspired biomes */
+    dawn:{amp:0.5,fog:0.006,exp:1.24,cel:'sun',land:'crystal',scat:'grass',part:'pollen',
+      sky:['#2a3550','#7a6a8a','#'+mix(accC,0xd8a0a8,.35).getHexString(),'#f2d8c0'],fogC:new THREE.Color(0x8a7a90),terr:[0xc8bfd0,new THREE.Color(0xa090a8)]},
+    prestige:{amp:0.35,fog:0.009,exp:1.05,cel:'moon',land:'obsidian',scat:'rock',part:'firefly',plinth:1,
+      sky:['#000002','#050408','#14100a','#'+mix(accC,0x3a2a10,.5).getHexString()],fogC:new THREE.Color(0x060504),terr:[0x0a0a0c,new THREE.Color(0x2a2418)]},
+    impulse:{amp:0.7,fog:0.012,exp:1.22,cel:'ring',land:'pylon',scat:'cube',part:'firefly',grid:1,banner:1,pulse:1,
+      sky:['#0a0208','#2a0618','#'+mix(accC,0x5a1030,.45).getHexString(),'#'+mix(accC,0x000000,.2).getHexString()],fogC:mix(accC,0x1c0410,.7),terr:[0x0e040a,mix(accC,0x30101e,.5)]},
+    warehouse:{amp:0.45,fog:0.012,exp:1.1,cel:'moon',land:'pylon',scat:'cube',part:'firefly',crates:1,
+      sky:['#050505','#0e0c08','#1e160a','#'+mix(accC,0x3a2a12,.5).getHexString()],fogC:new THREE.Color(0x0e0c08),terr:[0x0c0c0e,new THREE.Color(0x24201a)]},
+    motion:{amp:0.6,fog:0.009,exp:1.15,cel:'planet',land:'shard',scat:'rock',part:'plankton',orbits:1,nebula:1,
+      sky:['#01040a','#04101e','#'+mix(accC,0x0a2a3a,.5).getHexString(),'#'+mix(accC,0x000000,.3).getHexString()],fogC:new THREE.Color(0x061420),terr:[0x081018,new THREE.Color(0x16303e)]},
+    ride:{amp:1.6,fog:0.010,exp:1.08,cel:'sun',land:'tree',scat:'rock',part:'firefly',shoot:1,banner:1,
+      sky:['#04070e','#0e1c28','#2a4a52','#c26a3a'],fogC:new THREE.Color(0x14242c),terr:[0x141a16,new THREE.Color(0x3a4a3c)]}
   };
   return CFG[key]||CFG.dunes;
 }
@@ -3978,6 +3992,19 @@ function buildWorld(){
       const ban=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.8),new THREE.MeshStandardMaterial({color:accC,roughness:.55,side:THREE.DoubleSide,emissive:accC.getHex(),emissiveIntensity:.25}));
       ban.position.set(x+.6,gy2+h-1,z);ban.rotation.y=a;wdScene.add(ban);
       wdAnim.push({m:ban,rot:new THREE.Vector3(0,.004,0),bob:.12,ph:Math.random()*6.28,baseY:ban.position.y});}}
+  if(cfg.crates){// warehouse: stacked crates under amber worklights
+    for(let i=0;i<11;i++){const a=Math.random()*6.2832,r=11+Math.sqrt(Math.random())*48,x=Math.cos(a)*r,z=Math.sin(a)*r,gy2=wdHT(x,z),n=2+((Math.random()*3)|0);
+      for(let k=0;k<n;k++){const s=1+Math.random()*.8;
+        const bx=new THREE.Mesh(new THREE.BoxGeometry(s,s*.8,s),new THREE.MeshStandardMaterial({color:k%2?0x1a1712:0x14120e,roughness:.7,metalness:.3,emissive:accC.getHex(),emissiveIntensity:.04}));
+        bx.position.set(x+(Math.random()-.5)*.5,gy2+s*.4+k*s*.8,z+(Math.random()-.5)*.5);bx.rotation.y=Math.random()*.6;wdScene.add(bx);}
+      if(i%3===0){const wl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#ffdca0','#c28a3a'),transparent:true,opacity:.7,blending:THREE.AdditiveBlending,depthWrite:false}));
+        wl.scale.set(3,3,1);wl.position.set(x,gy2+4.4,z);wdScene.add(wl);}}}
+  if(cfg.orbits){// motion: giant slow rings orbiting the scene — everything is kinetic
+    for(let i=0;i<3;i++){const R2=26+i*16;
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(R2,.16,8,120),
+        new THREE.MeshBasicMaterial({color:accC,transparent:true,opacity:.22-i*.05,toneMapped:false,blending:THREE.AdditiveBlending,depthWrite:false}));
+      ring.position.y=8+i*7;ring.rotation.x=Math.PI/2+(Math.random()-.5)*.5;wdScene.add(ring);
+      wdAnim.push({m:ring,rot:new THREE.Vector3(.0007+i*.0004,.0011,0)});}}
   // ✎ user-placed items (builder) — registry-generated, selectable in edit mode
   wdItems=[];
   if(typeof bldWorld!=='undefined'&&bldWorld&&bldWorld.items&&bldWorld.items.length){
@@ -4482,7 +4509,13 @@ const TEMPLATES={
   stage:{cat:'Music · Artist',acc:'#ff4fd8',tag:'A stage that beats with the light'},
   bazaar:{cat:'Store · Market',acc:'#ff8a5b',tag:'Awnings glowing in the night'},
   summit:{cat:'Event · Summit',acc:'#6bd5ff',tag:'Banners on a snowbound ridge'},
-  archive:{cat:'Blog · Docs',acc:'#4a90d9',tag:'Bright ivory daylight archive'}
+  archive:{cat:'Blog · Docs',acc:'#4a90d9',tag:'Bright ivory daylight archive'},
+  dawn:{cat:'Shop · Everyday',acc:'#e8896a',tag:'Sunrise pastels, calm commerce'},
+  prestige:{cat:'Shop · Luxury',acc:'#d4af6a',tag:'Black marble, gold spotlights'},
+  impulse:{cat:'Shop · Bold promo',acc:'#ff3d7a',tag:'Loud grid, banners, pure energy'},
+  warehouse:{cat:'Shop · Catalog',acc:'#f0a03a',tag:'Crate stacks under worklights'},
+  motion:{cat:'Shop · Kinetic',acc:'#3ad5c8',tag:'Orbiting rings, nothing stands still'},
+  ride:{cat:'Shop · Outdoors',acc:'#ff7a3d',tag:'Dusk trail through high country'}
 };
 const TEMPLATE_ITEMS={
   gallery:[['glowsprite',9,-12],['sphere',-9,-11],['beam',0,-17]],
@@ -4491,6 +4524,12 @@ const TEMPLATE_ITEMS={
   bazaar:[['cubes',9,-10],['glowsprite',-8,-13],['pylon',13,3]],
   summit:[['obsidian',9,-12],['beam',-9,-11],['rock',13,4]],
   archive:[['crystal',9,-11],['grasstuft',-8,-12],['label',0,-16]],
+  dawn:[['arch',0,-15],['grasstuft',-8,-11],['glowsprite',10,-9]],
+  prestige:[['gate',0,-16],['monolith',-10,-11],['beam',10,-11]],
+  impulse:[['ringlet',8,-10],['gate',-9,-13],['swarm',12,2]],
+  warehouse:[['gate',0,-15],['cubes',9,-10],['monolith',-11,-9]],
+  motion:[['swarm',0,-13],['ringlet',9,-11],['octa',-9,-11]],
+  ride:[['tree',9,-10],['arch',0,-16],['rock',-10,-11]],
   dunes:[['crystal',8,-10],['glowsprite',-9,-14],['rock',12,4]],
   peaks:[['obsidian',9,-12],['beam',-8,-10],['rock',-13,6]],
   neon:[['pylon',8,-10],['ringlet',-8,-12],['cubes',12,2]],
@@ -4558,7 +4597,37 @@ const TEMPLATE_CARDS={
     {tag:'JOURNAL',title:'Notes worth keeping',summary:'Essays and field notes, filed in bright daylight. Slow thoughts, carefully kept.',datum:{value:'120+',label:'entries'},hero:true},
     {tag:'LATEST',title:'The latest entry',summary:'Link this card to your newest piece. Swap it out when you publish.'},
     {tag:'TOPICS',title:'Standing threads',summary:'The themes you keep returning to. One card per thread works beautifully.'},
-    {tag:'SUBSCRIBE',title:'Letters, monthly',summary:'One email a month, no noise.',datum:{value:'1/mo',label:'cadence'}}]
+    {tag:'SUBSCRIBE',title:'Letters, monthly',summary:'One email a month, no noise.',datum:{value:'1/mo',label:'cadence'}}],
+  dawn:[
+    {tag:'SHOP',title:'Good things, gently made',summary:'An everyday store that feels like first light — calm, clear, and easy to browse.',datum:{value:'NEW',label:'season'},hero:true},
+    {tag:'BESTSELLERS',title:'What everyone keeps buying',summary:'Add product photos to these cards — they hang in the sunrise as soft holograms.'},
+    {tag:'VALUES',title:'Why we make it this way',summary:'Honest materials, fair prices, packaging that composts. Simple as morning.'},
+    {tag:'NEWSLETTER',title:'Fresh drops, first',summary:'Subscribers see every launch a day early.',datum:{value:'+1d',label:'early access'}}],
+  prestige:[
+    {tag:'MAISON',title:'Crafted for the few',summary:'A house of considered objects — each piece lit alone in the dark, as it deserves.',datum:{value:'N°9',label:'collection'},hero:true},
+    {tag:'COLLECTION',title:'The new collection',summary:'One card per piece. A photograph, a name, a price. Nothing else is needed.'},
+    {tag:'ATELIER',title:'From the atelier',summary:'Hand-finished in small numbers. Each piece signed and numbered.',datum:{value:'50',label:'pieces made'}},
+    {tag:'PRIVATE',title:'Private viewings',summary:'By appointment, in person or here in the maison itself.'}],
+  impulse:[
+    {tag:'SALE',title:'48 hours. Everything moves.',summary:'The drop is live and the clock is running. Banners up, grid on, no restocks.',datum:{value:'−40%',label:'this weekend'},hero:true},
+    {tag:'TRENDING',title:'Selling out right now',summary:'Pin your fastest movers here — the world literally pulses while they sell.'},
+    {tag:'NEW IN',title:'Just landed',summary:'Fresh stock every Thursday. Add images and watch them glow.'},
+    {tag:'VIP',title:'Skip the queue',summary:'Members shop drops one hour early.',datum:{value:'1h',label:'head start'}}],
+  warehouse:[
+    {tag:'CATALOG',title:'Everything. In stock. Tonight.',summary:'Ten thousand SKUs under the worklights — search it, stack it, ship it.',datum:{value:'10k+',label:'SKUs'},hero:true},
+    {tag:'DEPARTMENTS',title:'Shop by department',summary:'One card per aisle: tools, hardware, parts, supply. Link each to its collection.'},
+    {tag:'TRADE',title:'Trade accounts',summary:'Volume pricing, net-30 terms, and a rep who answers the phone.',datum:{value:'NET 30',label:'terms'}},
+    {tag:'DELIVERY',title:'On the truck by morning',summary:'Order by 6pm and it ships the same night.',datum:{value:'6pm',label:'cutoff'}}],
+  motion:[
+    {tag:'LAB',title:'Products in perpetual motion',summary:'Nothing here stands still — rings orbit, light drifts, and the catalog moves with you.',datum:{value:'v2',label:'now shipping'},hero:true},
+    {tag:'FEATURED',title:'The flagship',summary:'Give your hero product a card and a film still — motion sells motion.'},
+    {tag:'HOW',title:'Watch it work',summary:'Link this card to your product film. Thirty seconds says everything.'},
+    {tag:'PREORDER',title:'The next thing',summary:'Reserve now, pay when it ships.',datum:{value:'Q4',label:'ships'}}],
+  ride:[
+    {tag:'OUTFITTER',title:'Built for the long way home',summary:'Gear for people who take the trail over the highway, tested on this very ridge.',datum:{value:'est. 14',label:'years out here'},hero:true},
+    {tag:'GEAR',title:'The essentials',summary:'Packs, layers, lights. One card per line — photograph them in the wild.'},
+    {tag:'GUIDES',title:'Route guides',summary:'Free route maps with every order. The good kind, on paper.'},
+    {tag:'GUARANTEE',title:'Ride it. Break it. We fix it.',summary:'Lifetime repairs, no receipts, no lectures.',datum:{value:'∞',label:'warranty'}}]
 };
 function renderTemplates(){
   const host=document.getElementById('tplGrid');if(!host)return;
