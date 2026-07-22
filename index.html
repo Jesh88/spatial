@@ -3718,13 +3718,15 @@ let wdScene=null,wdCam=null,wdComp=null,wdGrade=null,wdRAF=null,wdOn=false,wdObj
     wdTheme='dunes',wdAmp=1,wdLastInput=0,wdShoot=null,wdShootT=4;
 const wdRay=new THREE.Raycaster(),wdNdc=new THREE.Vector2();
 let wdItems=[];// user-placed builder items in the live scene: {id,g,meshes[]}
+let wdBloom=null,wdPulse=false;// stage theme: bloom beats on a sine
 function wdH(x,z){ // rolling terrain height (base noise; theme scales via wdAmp)
   return Math.sin(x*0.055+z*0.071)*2.3+Math.sin(x*0.021-z*0.017)*3.4+Math.cos(x*0.13)*0.7+Math.sin(z*0.11)*0.6;
 }
 function wdHT(x,z){return wdH(x,z)*wdAmp;}
 /* biome selection — the site's character picks its world (or the builder forces one) */
 let wdForcedTheme=null;// set by the builder; null → auto-pick from site character
-const WD_THEME_LABEL={dunes:'Dusk Dunes',peaks:'Midnight Peaks',neon:'Neon Expanse',vale:'Verdant Vale',isles:'Glass Isles','void':'Event Horizon'};
+const WD_THEME_LABEL={dunes:'Dusk Dunes',peaks:'Midnight Peaks',neon:'Neon Expanse',vale:'Verdant Vale',isles:'Glass Isles','void':'Event Horizon',
+  gallery:'Null Gallery',terrace:'Amber Terrace',stage:'Pulse Stage',bazaar:'Night Bazaar',summit:'Frost Summit',archive:'Ivory Archive'};
 /* theme config — data table consumed by buildWorld's generators (colors derive from the live accent) */
 function themeCfg(key,accC){
   const mix=(c,h,k)=>new THREE.Color(c).lerp(new THREE.Color(h),k);
@@ -3740,7 +3742,19 @@ function themeCfg(key,accC){
     isles:{amp:1.15,fog:0.010,exp:1.06,cel:'moon',land:'crystal',scat:'reed',part:'plankton',water:1,
       sky:['#020617','#07122b','#123252','#'+mix(accC,0x2a6a8f,.5).getHexString()],fogC:new THREE.Color(0x0c1e34),terr:[0x0c1420,new THREE.Color(0x24405a)]},
     'void':{amp:0.7,fog:0.008,exp:1.08,cel:'planet',land:'shard',scat:'rock',part:'firefly',nebula:1,shoot:1,
-      sky:['#000004','#03000d','#12042a','#'+mix(accC,0x000000,.45).getHexString()],fogC:new THREE.Color(0x070212),terr:[0x06050e,new THREE.Color(0x1a1230)]}
+      sky:['#000004','#03000d','#12042a','#'+mix(accC,0x000000,.45).getHexString()],fogC:new THREE.Color(0x070212),terr:[0x06050e,new THREE.Color(0x1a1230)]},
+    gallery:{amp:0.15,fog:0.007,exp:1.1,cel:'moon',land:'shard',scat:'rock',part:'firefly',nebula:1,plinth:1,
+      sky:['#000006','#040410','#0c0a20','#'+mix(accC,0x000000,.5).getHexString()],fogC:new THREE.Color(0x05040e),terr:[0x0a0a12,new THREE.Color(0x181826)]},
+    terrace:{amp:0.55,fog:0.010,exp:1.18,cel:'sun',land:'tree',scat:'grass',part:'firefly',lantern:1,
+      sky:['#160f1e','#3a1e2a','#'+mix(accC,0xc2603a,.5).getHexString(),'#e8a05a'],fogC:new THREE.Color(0x2a1a20),terr:[0x1a1210,new THREE.Color(0x5a3a2c)]},
+    stage:{amp:0.4,fog:0.013,exp:1.2,cel:'ring',land:'pylon',scat:'cube',part:'rain',grid:1,pulse:1,
+      sky:['#03000a','#0e0322','#'+mix(accC,0x3a0a5a,.4).getHexString(),'#'+mix(accC,0x000000,.15).getHexString()],fogC:mix(accC,0x0c0418,.75),terr:[0x06040e,mix(accC,0x1a0a30,.45)]},
+    bazaar:{amp:0.9,fog:0.011,exp:1.12,cel:'moon',land:'pylon',scat:'cube',part:'firefly',stall:1,shoot:1,
+      sky:['#0a0512','#1c0a24','#'+mix(accC,0x40204a,.5).getHexString(),'#'+mix(accC,0x1a0a10,.3).getHexString()],fogC:mix(accC,0x160a1c,.7),terr:[0x120a16,mix(accC,0x2c1830,.5)]},
+    summit:{amp:2.6,fog:0.012,exp:1.02,cel:'moon',land:'obsidian',scat:'rock',part:'snow',aurora:1,banner:1,shoot:1,
+      sky:['#020310','#071026','#12244a','#'+mix(accC,0x2a4a7a,.55).getHexString()],fogC:new THREE.Color(0x0c1830),terr:[0xdfe8f2,new THREE.Color(0x9fb4cc)]},
+    archive:{amp:0.6,fog:0.006,exp:1.22,cel:'sun',land:'crystal',scat:'reed',part:'pollen',
+      sky:['#1a2a40','#3a5a78','#'+mix(accC,0x9ab4c8,.4).getHexString(),'#e8d8b8'],fogC:new THREE.Color(0x4a6580),terr:[0xcfd8dc,new THREE.Color(0xaab8c2)]}
   };
   return CFG[key]||CFG.dunes;
 }
@@ -3883,6 +3897,13 @@ function buildWorld(){
     grp.traverse(o=>{if(o.isMesh)o.userData.idx=idx;});grp.children.forEach(m=>wdObjs.push(m));wdScene.add(grp);return grp;};
   const addLandmark=(card,i,x,z,big)=>{
     const gy=gY(x,z);mkBase(x,z,big,i);
+    if(cfg.plinth){// gallery: every card gets a museum plinth + spotlight cone
+      const pl=new THREE.Mesh(new THREE.CylinderGeometry(big?3.4:2.2,big?3.8:2.5,.5,24),
+        new THREE.MeshStandardMaterial({color:0x14141e,metalness:.6,roughness:.3,emissive:accC.getHex(),emissiveIntensity:.05}));
+      pl.position.set(x,gy+.25,z);wdScene.add(pl);
+      const spot=new THREE.Mesh(new THREE.CylinderGeometry(0.1,big?3.2:2.1,big?13:9,20,1,true),
+        new THREE.MeshBasicMaterial({color:accC,transparent:true,opacity:.07,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+      spot.position.set(x,gy+(big?6.5:4.5),z);wdScene.add(spot);}
     if(card.img){const hw=big?13:8.4,hh=hw*0.62;
       const holo=new THREE.Mesh(new THREE.PlaneGeometry(hw,hh),new THREE.MeshBasicMaterial({color:0x0e131c,transparent:true,opacity:.96,toneMapped:false,side:THREE.DoubleSide}));
       holo.position.set(x,gy+(big?9.5:6.2),z);holo.userData.idx=i;wdScene.add(holo);wdObjs.push(holo);
@@ -3916,6 +3937,28 @@ function buildWorld(){
      else{const s=.2+Math.random()*.5;SV.set(s,s*(.7+Math.random()*.8),s);PV.y=gy3+SV.y*.3;}
      E.set(0,Math.random()*6.2832,0);Q.setFromEuler(E);M.compose(PV,Q,SV);im2.setMatrixAt(i,M);}
    wdScene.add(im2);}
+  // themed set pieces (new-biome flags)
+  if(cfg.lantern){// terrace: warm lanterns on slim posts
+    for(let i=0;i<14;i++){const a=Math.random()*6.2832,r=10+Math.sqrt(Math.random())*55,x=Math.cos(a)*r,z=Math.sin(a)*r,gy2=wdHT(x,z),h=2.2+Math.random()*1.4;
+      const post=new THREE.Mesh(new THREE.CylinderGeometry(.05,.07,h,5),new THREE.MeshStandardMaterial({color:0x2a1c14,roughness:.8}));
+      post.position.set(x,gy2+h/2,z);wdScene.add(post);
+      const lam=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#fff3d8','#e8a05a'),transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));
+      lam.scale.set(2.2,2.2,1);lam.position.set(x,gy2+h+.5,z);wdScene.add(lam);}}
+  if(cfg.stall){// bazaar: awning stalls
+    for(let i=0;i<9;i++){const a=(i/9)*6.2832+.4,r=13+Math.random()*30,x=Math.cos(a)*r,z=Math.sin(a)*r,gy2=wdHT(x,z);
+      const box=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.4,1.6),new THREE.MeshStandardMaterial({color:0x1a1020,roughness:.6,metalness:.3,emissive:accC.getHex(),emissiveIntensity:.08}));
+      box.position.set(x,gy2+.7,z);box.rotation.y=a;wdScene.add(box);
+      const awn=new THREE.Mesh(new THREE.PlaneGeometry(2.8,1.5),new THREE.MeshStandardMaterial({color:mix(accC,0xd8a03a,.4).getHex(),roughness:.7,side:THREE.DoubleSide,emissive:accC.getHex(),emissiveIntensity:.12}));
+      awn.position.set(x,gy2+2.1,z);awn.rotation.set(-.5,a,0);wdScene.add(awn);
+      const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#ffffff',accHex),transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false}));
+      gl.scale.set(2,2,1);gl.position.set(x,gy2+1.8,z);wdScene.add(gl);}}
+  if(cfg.banner){// summit: banner poles
+    for(let i=0;i<10;i++){const a=(i/10)*6.2832,r=12+Math.random()*40,x=Math.cos(a)*r,z=Math.sin(a)*r,gy2=wdHT(x,z),h=4+Math.random()*2;
+      const pole=new THREE.Mesh(new THREE.CylinderGeometry(.06,.09,h,5),new THREE.MeshStandardMaterial({color:0x223,roughness:.6,metalness:.5}));
+      pole.position.set(x,gy2+h/2,z);wdScene.add(pole);
+      const ban=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.8),new THREE.MeshStandardMaterial({color:accC,roughness:.55,side:THREE.DoubleSide,emissive:accC.getHex(),emissiveIntensity:.25}));
+      ban.position.set(x+.6,gy2+h-1,z);ban.rotation.y=a;wdScene.add(ban);
+      wdAnim.push({m:ban,rot:new THREE.Vector3(0,.004,0),bob:.12,ph:Math.random()*6.28,baseY:ban.position.y});}}
   // ✎ user-placed items (builder) — registry-generated, selectable in edit mode
   wdItems=[];
   if(typeof bldWorld!=='undefined'&&bldWorld&&bldWorld.items&&bldWorld.items.length){
@@ -3933,7 +3976,7 @@ function buildWorld(){
   }
   // post
   wdComp=new THREE.EffectComposer(renderer);wdComp.addPass(new THREE.RenderPass(wdScene,wdCam));
-  wdComp.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.75,0.85,0.62));
+  wdBloom=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.75,0.85,0.62);wdComp.addPass(wdBloom);wdPulse=!!cfg.pulse;
   wdGrade=new THREE.ShaderPass(new THREE.ShaderMaterial({uniforms:{tDiffuse:{value:null},uTime:{value:0},uRes:{value:new THREE.Vector2(innerWidth,innerHeight)}},
     vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
     fragmentShader:`uniform sampler2D tDiffuse;uniform float uTime;uniform vec2 uRes;varying vec2 vUv;float hash(vec2 p){return fract(sin(dot(p,vec2(41.37,289.13)))*43758.5453);}
@@ -3980,6 +4023,7 @@ function worldFrame(){wdRAF=requestAnimationFrame(worldFrame);const now=performa
     else if(wdShootT<=0){S.life=S.max=.9+Math.random()*.6;S.vx=-34-Math.random()*20;S.vy=-10-Math.random()*6;
       S.s.position.set(40+Math.random()*70,44+Math.random()*18,-130-Math.random()*40);S.s.material.rotation=Math.atan2(S.vy,S.vx);wdShootT=5+Math.random()*7;}}
   if(wdGrade)wdGrade.uniforms.uTime.value=t;
+  if(wdPulse&&wdBloom)wdBloom.strength=0.72+0.34*(0.5+0.5*Math.sin(t*2.4));// stage: the world breathes with the beat
   if(wdComp)wdComp.render();
 }
 function showWorld(){
@@ -4389,9 +4433,21 @@ const TEMPLATES={
   neon:{cat:'Startup · Store',acc:'#c25bff',tag:'Rain-slick cyber grid'},
   vale:{cat:'Wellness · Food',acc:'#57d08a',tag:'Golden-hour green valley'},
   isles:{cat:'Travel · Hotel',acc:'#4ec8e8',tag:'Moonlit water and glass isles'},
-  'void':{cat:'Crypto · AI',acc:'#8a5bff',tag:'A planet hangs in the dark'}
+  'void':{cat:'Crypto · AI',acc:'#8a5bff',tag:'A planet hangs in the dark'},
+  gallery:{cat:'Portfolio',acc:'#e8e4ff',tag:'Plinths and spotlights in the null'},
+  terrace:{cat:'Restaurant · Café',acc:'#ffb35b',tag:'Lantern-lit golden terrace'},
+  stage:{cat:'Music · Artist',acc:'#ff4fd8',tag:'A stage that beats with the light'},
+  bazaar:{cat:'Store · Market',acc:'#ff8a5b',tag:'Awnings glowing in the night'},
+  summit:{cat:'Event · Summit',acc:'#6bd5ff',tag:'Banners on a snowbound ridge'},
+  archive:{cat:'Blog · Docs',acc:'#4a90d9',tag:'Bright ivory daylight archive'}
 };
 const TEMPLATE_ITEMS={
+  gallery:[['glowsprite',9,-12],['sphere',-9,-11],['beam',0,-17]],
+  terrace:[['tree',8,-10],['grasstuft',-8,-12],['glowsprite',12,3]],
+  stage:[['ringlet',8,-11],['beam',-8,-11],['pylon',0,-17]],
+  bazaar:[['cubes',9,-10],['glowsprite',-8,-13],['pylon',13,3]],
+  summit:[['obsidian',9,-12],['beam',-9,-11],['rock',13,4]],
+  archive:[['crystal',9,-11],['grasstuft',-8,-12],['label',0,-16]],
   dunes:[['crystal',8,-10],['glowsprite',-9,-14],['rock',12,4]],
   peaks:[['obsidian',9,-12],['beam',-8,-10],['rock',-13,6]],
   neon:[['pylon',8,-10],['ringlet',-8,-12],['cubes',12,2]],
