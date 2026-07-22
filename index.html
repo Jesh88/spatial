@@ -307,7 +307,12 @@
       </div>
       <div class="bp-tab" id="bpTabWorld" style="display:none">
         <label class="bp-lbl">World name <input id="bpName" maxlength="48" placeholder="My World"/></label>
-        <div class="bp-hint">Autosaves to this browser. Publishing &amp; share links coming next.</div>
+        <div class="bp-row bp-two">
+          <button class="bp-btn" id="bpPublish">🔗 Publish link</button>
+          <button class="bp-btn" id="bpExport">⇩ Export</button>
+        </div>
+        <label class="bp-lbl">Import world file <input type="file" id="bpImport" accept=".json,application/json"/></label>
+        <div class="bp-hint" id="bpPubOut">Autosaves to this browser. Publish copies a share link that carries the whole world.</div>
       </div>
     </div>
   </aside>
@@ -1954,6 +1959,7 @@ THREE.UnrealBloomPass.BlurDirectionX = new THREE.Vector2( 1.0, 0.0 );
 THREE.UnrealBloomPass.BlurDirectionY = new THREE.Vector2( 0.0, 1.0 );
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 <script>/* ---- r128 CSS3DRenderer (renders real DOM elements in 3D — crisp text + real images) ---- */
 (function(){
  const _position=new THREE.Vector3(),_quaternion=new THREE.Quaternion(),_scale=new THREE.Vector3();
@@ -4318,8 +4324,52 @@ function renderWorldStrip(){
 }
 document.getElementById('glxNew').addEventListener('click',()=>{bldClose();bldWorld=null;wdForcedTheme=null;setTimeout(renderWorldStrip,50);});
 renderWorldStrip();
+/* ---- publish / share / export / import ---- */
+function serializeWorld(w){
+  const c=JSON.parse(JSON.stringify(w));
+  delete c.meta.modified;delete c.meta.created;
+  (c.cards||[]).forEach(k=>{for(const f in k)if(k[f]==null||k[f]===false||(f==='href'&&k[f]==='#'))delete k[f];});
+  return JSON.stringify(c);
+}
+function publishURL(){
+  if(typeof LZString==='undefined'||!bldWorld)return null;
+  return location.origin+location.pathname+'#w='+LZString.compressToEncodedURIComponent(serializeWorld(bldWorld));
+}
+document.getElementById('bpPublish').onclick=()=>{
+  const out=document.getElementById('bpPubOut'),u=publishURL();
+  if(!u){out.textContent='Share library not loaded — use Export instead.';return;}
+  if(u.length>6000){out.textContent='⚠ World too big for a link ('+u.length+' chars) — use Export.';return;}
+  if(navigator.clipboard)navigator.clipboard.writeText(u).catch(()=>{});
+  out.innerHTML='Link copied · '+u.length+' chars<br><a style="color:var(--accent);word-break:break-all" href="'+u+'">'+u.slice(0,72)+'…</a>';
+};
+document.getElementById('bpExport').onclick=()=>{
+  if(!bldWorld)return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(bldWorld,null,1)],{type:'application/json'}));
+  a.download=(bldWorld.meta.name||'world').replace(/[^\w-]+/g,'_')+'.spatial.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+};
+document.getElementById('bpImport').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
+  f.text().then(txt=>{
+    const w=migrateWorld(JSON.parse(txt));if(!w)throw 0;
+    w.meta.id=newWorldId();bldWorld=null;applyWorld(w);bldOpen();
+  }).catch(()=>{document.getElementById('bpPubOut').textContent='⚠ Not a valid world file.';});
+});
+/* ---- boot: open a shared world from the URL hash ---- */
+function bootSharedWorld(){
+  if(!location.hash.startsWith('#w=')||typeof LZString==='undefined')return false;
+  try{
+    const w=migrateWorld(JSON.parse(LZString.decompressFromEncodedURIComponent(location.hash.slice(3))));
+    if(!w)return false;
+    w.meta.id=newWorldId();// visiting a shared link → your own remixable copy (saved only if you edit)
+    setTimeout(()=>{bldWorld=null;applyWorld(w);},80);
+    return true;
+  }catch(e){return false;}
+}
 
 startLanding();
+bootSharedWorld();
 </script>
 </body>
 </html>
