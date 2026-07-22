@@ -177,6 +177,7 @@
         <input id="url" placeholder="yoursite.com" spellcheck="false"/>
         <button id="analyze" type="button">Spatialize<b>→</b></button>
       </div>
+      <div id="myworlds"></div>
     </div>
   </section>
 
@@ -230,6 +231,7 @@
     <div class="glxbrand"><span class="gdot"></span><b id="glxTitle">DEPTH</b><span id="glxSub"></span></div>
     <div class="glxforms" id="glxForms"></div>
     <div style="display:flex;gap:8px">
+      <button class="glxbtn" id="bldBtn">✎ Edit</button>
       <button class="glxbtn airbtn" id="handBtn"><svg class="handglyph" viewBox="0 0 24 26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 24 L7 15 M12 24 L9.5 12 M12 24 L12 11 M12 24 L14.5 12 M12 24 L16.5 13 M7 15 L4.3 9.5 M9.5 12 L8.4 2.6 M12 11 L12 1.8 M14.5 12 L15.6 2.6 M16.5 13 L18.7 5.6"/><g fill="currentColor" stroke="none"><circle cx="12" cy="24" r="1.7"/><circle cx="4.3" cy="9.5" r="1.3"/><circle cx="8.4" cy="2.6" r="1.3"/><circle cx="12" cy="1.8" r="1.3"/><circle cx="15.6" cy="2.6" r="1.3"/><circle cx="18.7" cy="5.6" r="1.3"/><circle cx="7" cy="15" r="1"/><circle cx="9.5" cy="12" r="1"/><circle cx="12" cy="11" r="1"/><circle cx="14.5" cy="12" r="1"/><circle cx="16.5" cy="13" r="1"/></g></svg>AirTouch</button>
       <button class="glxbtn ghost" id="glxNew">↩ New</button>
     </div>
@@ -269,6 +271,91 @@
   </div>
   <canvas id="handfx"></canvas>
   <div id="handcur"><i></i></div>
+  <!-- ✎ BUILDER — inspector panel -->
+  <aside id="bldpanel">
+    <div class="bp-head">
+      <b>Builder</b>
+      <span class="bp-save" id="bpSave"></span>
+      <button class="gdx" id="bpClose">✕</button>
+    </div>
+    <div class="bp-tabs">
+      <button class="on" data-t="cards">Cards</button>
+      <button data-t="theme">Theme</button>
+      <button data-t="world">World</button>
+    </div>
+    <div class="bp-body">
+      <div class="bp-tab" id="bpTabCards">
+        <div class="bp-row"><select id="bpCardSel"></select></div>
+        <div class="bp-row bp-two">
+          <button class="bp-btn" id="bpCardAdd">＋ Add card</button>
+          <button class="bp-btn bp-danger" id="bpCardDel">Delete</button>
+        </div>
+        <label class="bp-lbl">Tag <input id="bpTag" maxlength="18" placeholder="FEATURE"/></label>
+        <label class="bp-lbl">Title <input id="bpTitle" maxlength="90" placeholder="Card title"/></label>
+        <label class="bp-lbl">Summary <textarea id="bpSum" rows="4" placeholder="What this card says…"></textarea></label>
+        <div class="bp-two">
+          <label class="bp-lbl">Stat <input id="bpDatV" maxlength="12" placeholder="42%"/></label>
+          <label class="bp-lbl">Stat label <input id="bpDatL" maxlength="24" placeholder="growth"/></label>
+        </div>
+        <label class="bp-lbl">Image URL <input id="bpImg" placeholder="https://…jpg"/></label>
+        <label class="bp-lbl">Link <input id="bpHref" placeholder="https://…"/></label>
+      </div>
+      <div class="bp-tab" id="bpTabTheme" style="display:none">
+        <div class="bp-lblx">World theme</div>
+        <div class="bp-themes" id="bpThemes"></div>
+        <label class="bp-lbl">Accent <span class="bp-accrow"><input type="color" id="bpAccent" value="#5b8cff"/><code id="bpAccentHex">#5b8cff</code></span></label>
+      </div>
+      <div class="bp-tab" id="bpTabWorld" style="display:none">
+        <label class="bp-lbl">World name <input id="bpName" maxlength="48" placeholder="My World"/></label>
+        <div class="bp-hint">Autosaves to this browser. Publishing &amp; share links coming next.</div>
+      </div>
+    </div>
+  </aside>
+  <style>
+  #bldpanel{position:fixed;top:64px;right:14px;bottom:14px;z-index:58;width:288px;display:none;flex-direction:column;
+    background:linear-gradient(165deg,rgba(11,16,27,.94),rgba(8,11,19,.9));border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);
+    border-radius:18px;box-shadow:0 0 42px -12px var(--accent);backdrop-filter:blur(14px);font-family:var(--body);color:#e6edfb;overflow:hidden;}
+  body.edit-on #bldpanel{display:flex;}
+  .bp-head{display:flex;align-items:center;gap:10px;padding:13px 16px 11px;border-bottom:1px solid rgba(255,255,255,.08);}
+  .bp-head b{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;}
+  .bp-head .gdx{position:static;margin-left:auto;}
+  .bp-save{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:color-mix(in srgb,var(--accent) 80%,#fff);opacity:.85;}
+  .bp-tabs{display:flex;gap:4px;padding:9px 12px 0;}
+  .bp-tabs button{flex:1;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(220,230,248,.55);
+    background:transparent;border:1px solid transparent;border-radius:10px;padding:7px 0;cursor:pointer;}
+  .bp-tabs button.on{color:#fff;background:color-mix(in srgb,var(--accent) 18%,transparent);border-color:color-mix(in srgb,var(--accent) 45%,transparent);}
+  .bp-body{flex:1;overflow-y:auto;padding:12px 14px 16px;}
+  .bp-row{margin-bottom:10px;}
+  .bp-two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:2px;}
+  .bp-lbl{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:rgba(200,214,238,.6);margin:0 0 10px;}
+  .bp-lblx{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:rgba(200,214,238,.6);margin:0 0 8px;}
+  #bldpanel input,#bldpanel textarea,#bldpanel select{width:100%;margin-top:5px;box-sizing:border-box;font-family:var(--body);font-size:13px;color:#f0f5ff;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;outline:none;resize:vertical;}
+  #bldpanel input:focus,#bldpanel textarea:focus,#bldpanel select:focus{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent);}
+  #bldpanel select{appearance:none;cursor:pointer;}
+  #bldpanel input[type=color]{width:44px;height:30px;padding:2px;margin-top:0;cursor:pointer;}
+  .bp-accrow{display:flex;align-items:center;gap:10px;margin-top:5px;}
+  .bp-accrow code{font-family:var(--mono);font-size:11px;color:rgba(220,230,248,.75);}
+  .bp-btn{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#eaf1ff;background:color-mix(in srgb,var(--accent) 16%,transparent);
+    border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:10px;padding:8px 0;cursor:pointer;}
+  .bp-btn:hover{background:color-mix(in srgb,var(--accent) 28%,transparent);}
+  .bp-danger{background:rgba(255,70,90,.1);border-color:rgba(255,70,90,.35);}
+  .bp-danger:hover{background:rgba(255,70,90,.22);}
+  .bp-themes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  .bp-themes button{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:rgba(225,235,250,.75);text-align:left;
+    background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:10px 10px;cursor:pointer;line-height:1.35;}
+  .bp-themes button em{display:block;font-style:normal;font-size:8.5px;opacity:.55;letter-spacing:.1em;}
+  .bp-themes button.on{color:#fff;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent);box-shadow:0 0 16px -6px var(--accent);}
+  .bp-hint{font-size:11.5px;line-height:1.5;color:rgba(200,214,238,.55);}
+  /* landing — my worlds strip */
+  #myworlds{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:26px;}
+  #myworlds .mw{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:#dbe6f8;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);border-radius:999px;padding:8px 8px 8px 14px;cursor:pointer;backdrop-filter:blur(8px);}
+  #myworlds .mw:hover{border-color:var(--accent);color:#fff;}
+  #myworlds .mw i{font-style:normal;opacity:.45;font-size:12px;padding:0 6px;border-radius:50%;}
+  #myworlds .mw i:hover{opacity:1;color:#ff6478;}
+  #myworlds .mw.new{border-style:dashed;color:color-mix(in srgb,var(--accent) 75%,#fff);padding-right:14px;}
+  </style>
   <style>
   #handui{position:fixed;right:18px;bottom:52px;z-index:30;display:none;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:none;}
   body.hands-on #handui{display:flex;}
@@ -3271,7 +3358,7 @@ function buildGalaxy(site){
   const raw=(site.blocks&&site.blocks.length>=3)?site.blocks:[{type:'title',text:site.label||'Site',sub:''}].concat((site.sections||[]).map(s=>({type:'head',text:s.t,datum:s.datum})));
   glxLink=site.link||('https://'+(site.label||'').replace(/^https?:\/\//,'').split('/')[0]);
   const t0=raw.find(b=>b.type==='title');const brand=(t0&&t0.text)||(site.label||'Site').replace(/^www\./,'').split('.')[0];
-  const blocks=curateCards(raw,brand,glxLink);// curated highlight cards, not raw fragments
+  const blocks=(site._cards&&site._cards.length)?site._cards:curateCards(raw,brand,glxLink);// builder worlds carry pre-authored cards; crawls get curated
   glxBlocks=blocks;
   const acc=(site.palette&&site.palette.accent)||site.themeColor||'#5b8cff';document.documentElement.style.setProperty('--accent',acc);
   document.getElementById('glxTitle').textContent=(site.label||'DEPTH').toUpperCase();
@@ -3590,8 +3677,28 @@ function wdH(x,z){ // rolling terrain height (base noise; theme scales via wdAmp
   return Math.sin(x*0.055+z*0.071)*2.3+Math.sin(x*0.021-z*0.017)*3.4+Math.cos(x*0.13)*0.7+Math.sin(z*0.11)*0.6;
 }
 function wdHT(x,z){return wdH(x,z)*wdAmp;}
-/* biome selection — the site's character picks its world */
+/* biome selection — the site's character picks its world (or the builder forces one) */
+let wdForcedTheme=null;// set by the builder; null → auto-pick from site character
 const WD_THEME_LABEL={dunes:'Dusk Dunes',peaks:'Midnight Peaks',neon:'Neon Expanse',vale:'Verdant Vale',isles:'Glass Isles','void':'Event Horizon'};
+/* theme config — data table consumed by buildWorld's generators (colors derive from the live accent) */
+function themeCfg(key,accC){
+  const mix=(c,h,k)=>new THREE.Color(c).lerp(new THREE.Color(h),k);
+  const CFG={
+    dunes:{amp:1.0,fog:0.011,exp:1.05,cel:'sun',land:'crystal',scat:'rock',part:'firefly',shoot:1,
+      sky:['#05070e','#0b1020','#'+mix(accC,0x0a0d18,.72).getHexString(),'#'+mix(accC,0x000000,.35).getHexString()],fogC:mix(accC,0x0a0d18,.72),terr:[0x11141f,mix(accC,0x1a2030,.55)]},
+    peaks:{amp:2.1,fog:0.012,exp:1.0,cel:'moon',land:'obsidian',scat:'rock',part:'snow',aurora:1,shoot:1,
+      sky:['#01020a','#050a18','#0b1430','#'+mix(accC,0x16204a,.6).getHexString()],fogC:new THREE.Color(0x0a1024),terr:[0x0a0d16,new THREE.Color(0x26304a)]},
+    neon:{amp:0.55,fog:0.013,exp:1.14,cel:'ring',land:'pylon',scat:'cube',part:'rain',grid:1,
+      sky:['#02010a','#0a0420','#'+mix(accC,0x20104a,.5).getHexString(),'#'+mix(accC,0x000000,.2).getHexString()],fogC:mix(accC,0x0a0616,.8),terr:[0x05040c,mix(accC,0x120a26,.5)]},
+    vale:{amp:0.8,fog:0.009,exp:1.16,cel:'sun',land:'tree',scat:'grass',part:'pollen',
+      sky:['#0a1626','#153048','#'+mix(accC,0x2e5a55,.45).getHexString(),'#c98a4a'],fogC:new THREE.Color(0x18324a),terr:[0x0e1c14,new THREE.Color(0x2c5a3c)]},
+    isles:{amp:1.15,fog:0.010,exp:1.06,cel:'moon',land:'crystal',scat:'reed',part:'plankton',water:1,
+      sky:['#020617','#07122b','#123252','#'+mix(accC,0x2a6a8f,.5).getHexString()],fogC:new THREE.Color(0x0c1e34),terr:[0x0c1420,new THREE.Color(0x24405a)]},
+    'void':{amp:0.7,fog:0.008,exp:1.08,cel:'planet',land:'shard',scat:'rock',part:'firefly',nebula:1,shoot:1,
+      sky:['#000004','#03000d','#12042a','#'+mix(accC,0x000000,.45).getHexString()],fogC:new THREE.Color(0x070212),terr:[0x06050e,new THREE.Color(0x1a1230)]}
+  };
+  return CFG[key]||CFG.dunes;
+}
 function wdPickTheme(site){
   const w=(site&&site.world)||'',ty=((site&&site.type)||'').toLowerCase();
   const pal=(site&&site.palette)||{},mood=pal.mood,hue=pal.hue;
@@ -3622,23 +3729,9 @@ function buildWorld(){
   const cards=(glxBlocks&&glxBlocks.length)?glxBlocks:[];
   const acc=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#5b8cff';
   const accC=new THREE.Color(acc),accHex='#'+accC.getHexString();wdAcc=acc;
-  wdTheme=wdPickTheme(curSite||{});const TH=wdTheme;
+  wdTheme=wdForcedTheme||wdPickTheme(curSite||{});const TH=wdTheme;
   const mix=(c,h,k)=>new THREE.Color(c).lerp(new THREE.Color(h),k);
-  const CFG={
-    dunes:{amp:1.0,fog:0.011,exp:1.05,cel:'sun',land:'crystal',scat:'rock',part:'firefly',shoot:1,
-      sky:['#05070e','#0b1020','#'+mix(accC,0x0a0d18,.72).getHexString(),'#'+mix(accC,0x000000,.35).getHexString()],fogC:mix(accC,0x0a0d18,.72),terr:[0x11141f,mix(accC,0x1a2030,.55)]},
-    peaks:{amp:2.1,fog:0.012,exp:1.0,cel:'moon',land:'obsidian',scat:'rock',part:'snow',aurora:1,shoot:1,
-      sky:['#01020a','#050a18','#0b1430','#'+mix(accC,0x16204a,.6).getHexString()],fogC:new THREE.Color(0x0a1024),terr:[0x0a0d16,new THREE.Color(0x26304a)]},
-    neon:{amp:0.55,fog:0.013,exp:1.14,cel:'ring',land:'pylon',scat:'cube',part:'rain',grid:1,
-      sky:['#02010a','#0a0420','#'+mix(accC,0x20104a,.5).getHexString(),'#'+mix(accC,0x000000,.2).getHexString()],fogC:mix(accC,0x0a0616,.8),terr:[0x05040c,mix(accC,0x120a26,.5)]},
-    vale:{amp:0.8,fog:0.009,exp:1.16,cel:'sun',land:'tree',scat:'grass',part:'pollen',
-      sky:['#0a1626','#153048','#'+mix(accC,0x2e5a55,.45).getHexString(),'#c98a4a'],fogC:new THREE.Color(0x18324a),terr:[0x0e1c14,new THREE.Color(0x2c5a3c)]},
-    isles:{amp:1.15,fog:0.010,exp:1.06,cel:'moon',land:'crystal',scat:'reed',part:'plankton',water:1,
-      sky:['#020617','#07122b','#123252','#'+mix(accC,0x2a6a8f,.5).getHexString()],fogC:new THREE.Color(0x0c1e34),terr:[0x0c1420,new THREE.Color(0x24405a)]},
-    'void':{amp:0.7,fog:0.008,exp:1.08,cel:'planet',land:'shard',scat:'rock',part:'firefly',nebula:1,shoot:1,
-      sky:['#000004','#03000d','#12042a','#'+mix(accC,0x000000,.45).getHexString()],fogC:new THREE.Color(0x070212),terr:[0x06050e,new THREE.Color(0x1a1230)]}
-  };
-  const cfg=CFG[TH]||CFG.dunes;wdAmp=cfg.amp;
+  const cfg=themeCfg(TH,accC);wdAmp=cfg.amp;
   if(!renderer){renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;}
   renderer.setSize(innerWidth,innerHeight);renderer.toneMappingExposure=cfg.exp;
   wdScene=new THREE.Scene();wdScene.fog=new THREE.FogExp2(cfg.fogC.getHex(),cfg.fog);
@@ -4066,6 +4159,165 @@ function handLoop(){
   handFist=gFist;handPrevX=X;handPrevY=Y;
 }
 document.getElementById('handBtn').onclick=handStart;
+
+/* ===================== ✎ BUILDER — author your own spatial website ===================== */
+const WORLD_SCHEMA_V=1;
+let bldWorld=null,bldOn=false,bldCardIdx=0,bldSaveT=null,bldRebT=null;
+function newWorldId(){return 'w'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function migrateWorld(w){
+  if(!w||typeof w!=='object')return null;
+  w.v=w.v||WORLD_SCHEMA_V;
+  w.meta=w.meta||{};w.meta.id=w.meta.id||newWorldId();w.meta.name=w.meta.name||'My World';
+  w.meta.accent=w.meta.accent||'#5b8cff';w.meta.created=w.meta.created||Date.now();
+  w.theme=w.theme||{};if(!WD_THEME_LABEL[w.theme.key])w.theme.key='dunes';
+  w.cards=Array.isArray(w.cards)?w.cards.filter(c=>c&&typeof c==='object'):[];
+  w.items=Array.isArray(w.items)?w.items:[];
+  w.settings=w.settings||{};if(w.settings.view!=='spatial')w.settings.view='world';
+  return w;
+}
+function starterWorld(themeKey){
+  return migrateWorld({v:WORLD_SCHEMA_V,meta:{id:newWorldId(),name:'My World',accent:'#5b8cff'},theme:{key:themeKey||'dunes'},items:[],
+    cards:[
+      {tag:'HERO',title:'Welcome to your world',summary:'This is your spatial website. Hit ✎ Edit to make it yours — rewrite this card, add more, switch themes, recolor everything.',img:null,datum:{value:'✦',label:'yours'},href:'#',hero:true},
+      {tag:'ABOUT',title:'Tell your story',summary:'Every card becomes a glowing landmark. Walk up to one and click it to read the full text.',img:null,datum:null,href:'#'},
+      {tag:'WORK',title:'Show what you make',summary:'Give a card an image URL and it projects as a hologram above the terrain.',img:null,datum:{value:'3D',label:'native'},href:'#'},
+      {tag:'CONTACT',title:'Get in touch',summary:'Point a card at any link — visitors open it straight from the world.',img:null,datum:null,href:'#'}
+    ],settings:{view:'world'}});
+}
+/* ---- render bridge: world doc → existing views ---- */
+function applyWorld(w){
+  w=migrateWorld(w);if(!w)return null;bldWorld=w;
+  document.documentElement.style.setProperty('--accent',w.meta.accent);
+  wdForcedTheme=w.theme.key;
+  const site={label:w.meta.name,themeColor:w.meta.accent,link:'#',blocks:[],sections:[],_cards:w.cards};
+  enterGalaxy(site);
+  if(w.settings.view==='spatial')morphTo('spatial');
+  return w;
+}
+/* ---- storage ---- */
+function worldIndex(){try{return JSON.parse(localStorage.getItem('spatial.worlds')||'[]');}catch(e){return [];}}
+function saveWorldNow(){
+  if(!bldWorld)return;bldWorld.meta.modified=Date.now();
+  try{
+    localStorage.setItem('spatial.world.'+bldWorld.meta.id,JSON.stringify(bldWorld));
+    const ix=worldIndex().filter(e=>e&&e.id!==bldWorld.meta.id);
+    ix.unshift({id:bldWorld.meta.id,name:bldWorld.meta.name,theme:bldWorld.theme.key,modified:bldWorld.meta.modified});
+    localStorage.setItem('spatial.worlds',JSON.stringify(ix.slice(0,60)));
+    const s=document.getElementById('bpSave');if(s){s.textContent='saved ✓';setTimeout(()=>{if(s.textContent==='saved ✓')s.textContent='';},1600);}
+  }catch(e){}
+}
+function saveWorld(){const s=document.getElementById('bpSave');if(s)s.textContent='saving…';clearTimeout(bldSaveT);bldSaveT=setTimeout(saveWorldNow,800);}
+function loadWorld(id){try{return migrateWorld(JSON.parse(localStorage.getItem('spatial.world.'+id)));}catch(e){return null;}}
+function deleteWorld(id){try{localStorage.removeItem('spatial.world.'+id);localStorage.setItem('spatial.worlds',JSON.stringify(worldIndex().filter(e=>e&&e.id!==id)));}catch(e){}}
+/* ---- debounced scene rebuild (same teardown path the accent poller uses) ---- */
+function requestRebuild(){clearTimeout(bldRebT);bldRebT=setTimeout(()=>{
+  if(wdOn){hideWorld(true);showWorld();}
+  else if(spOn){hideSpatial(true);showSpatial();}
+},650);}
+/* ---- snapshot a crawled site into an editable world doc ---- */
+function worldFromCurrent(){
+  const acc=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#5b8cff';
+  return migrateWorld({v:WORLD_SCHEMA_V,
+    meta:{id:newWorldId(),name:(curSite&&curSite.label)||'My World',accent:acc},
+    theme:{key:wdTheme||'dunes'},cards:glxBlocks||[],items:[],
+    settings:{view:spOn?'spatial':'world'}});
+}
+/* ---- inspector panel ---- */
+function bldOpen(){
+  if(!bldWorld)bldWorld=worldFromCurrent();
+  wdForcedTheme=bldWorld.theme.key;
+  bldOn=true;document.body.classList.add('edit-on');
+  document.getElementById('bldBtn').classList.add('on');
+  bldCardIdx=Math.min(bldCardIdx,Math.max(0,bldWorld.cards.length-1));
+  bldRenderCardSel();bldRenderThemes();bldLoadCard();
+  document.getElementById('bpAccent').value=bldWorld.meta.accent;
+  document.getElementById('bpAccentHex').textContent=bldWorld.meta.accent;
+  document.getElementById('bpName').value=bldWorld.meta.name;
+  saveWorld();
+}
+function bldClose(){bldOn=false;document.body.classList.remove('edit-on');document.getElementById('bldBtn').classList.remove('on');}
+document.getElementById('bldBtn').onclick=()=>{bldOn?bldClose():bldOpen();};
+document.getElementById('bpClose').onclick=bldClose;
+/* tabs */
+document.querySelectorAll('.bp-tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.bp-tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  const t=b.dataset.t;
+  document.getElementById('bpTabCards').style.display=t==='cards'?'':'none';
+  document.getElementById('bpTabTheme').style.display=t==='theme'?'':'none';
+  document.getElementById('bpTabWorld').style.display=t==='world'?'':'none';
+});
+/* cards tab */
+function bldRenderCardSel(){
+  const sel=document.getElementById('bpCardSel');
+  sel.innerHTML=bldWorld.cards.map((c,i)=>`<option value="${i}"${i===bldCardIdx?' selected':''}>${i+1} · ${(c.title||'untitled').slice(0,34).replace(/</g,'&lt;')}</option>`).join('')||'<option>— no cards —</option>';
+}
+function bldLoadCard(){
+  const c=bldWorld.cards[bldCardIdx];if(!c)return;
+  document.getElementById('bpTag').value=c.tag||'';
+  document.getElementById('bpTitle').value=c.title||'';
+  document.getElementById('bpSum').value=c.summary||'';
+  document.getElementById('bpDatV').value=(c.datum&&c.datum.value)||'';
+  document.getElementById('bpDatL').value=(c.datum&&c.datum.label)||'';
+  document.getElementById('bpImg').value=c.img||'';
+  document.getElementById('bpHref').value=(c.href&&c.href!=='#')?c.href:'';
+}
+function bldCardEdit(){
+  const c=bldWorld.cards[bldCardIdx];if(!c)return;
+  c.tag=document.getElementById('bpTag').value.trim()||'NOTE';
+  c.title=document.getElementById('bpTitle').value;
+  c.summary=document.getElementById('bpSum').value;
+  const dv=document.getElementById('bpDatV').value.trim(),dl=document.getElementById('bpDatL').value.trim();
+  c.datum=dv?{value:dv,label:dl}:null;
+  c.img=document.getElementById('bpImg').value.trim()||null;
+  c.href=document.getElementById('bpHref').value.trim()||'#';
+  bldRenderCardSel();saveWorld();requestRebuild();
+}
+['bpTag','bpTitle','bpSum','bpDatV','bpDatL','bpImg','bpHref'].forEach(id=>document.getElementById(id).addEventListener('input',bldCardEdit));
+document.getElementById('bpCardSel').addEventListener('change',e=>{bldCardIdx=+e.target.value||0;bldLoadCard();});
+document.getElementById('bpCardAdd').onclick=()=>{
+  bldWorld.cards.push({tag:'NEW',title:'New card',summary:'Write something…',img:null,datum:null,href:'#'});
+  bldCardIdx=bldWorld.cards.length-1;bldRenderCardSel();bldLoadCard();saveWorld();requestRebuild();
+};
+document.getElementById('bpCardDel').onclick=()=>{
+  if(bldWorld.cards.length<=1)return;
+  bldWorld.cards.splice(bldCardIdx,1);bldCardIdx=Math.max(0,bldCardIdx-1);
+  bldRenderCardSel();bldLoadCard();saveWorld();requestRebuild();
+};
+/* theme tab */
+function bldRenderThemes(){
+  const host=document.getElementById('bpThemes');
+  host.innerHTML=Object.keys(WD_THEME_LABEL).map(k=>`<button data-k="${k}"${k===bldWorld.theme.key?' class="on"':''}>${WD_THEME_LABEL[k]}<em>${k}</em></button>`).join('');
+  host.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    bldWorld.theme.key=b.dataset.k;wdForcedTheme=b.dataset.k;
+    host.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    saveWorld();if(wdOn){hideWorld(true);showWorld();}
+  });
+}
+document.getElementById('bpAccent').addEventListener('input',e=>{
+  const v=e.target.value;bldWorld.meta.accent=v;
+  document.getElementById('bpAccentHex').textContent=v;
+  document.documentElement.style.setProperty('--accent',v);// live pollers rebuild the scene
+  saveWorld();
+});
+document.getElementById('bpName').addEventListener('input',e=>{
+  bldWorld.meta.name=e.target.value||'My World';
+  document.getElementById('glxTitle').textContent=bldWorld.meta.name.toUpperCase();
+  saveWorld();
+});
+/* ---- landing: my worlds strip ---- */
+function renderWorldStrip(){
+  const host=document.getElementById('myworlds');if(!host)return;
+  const ix=worldIndex();
+  host.innerHTML='<button class="mw new" id="mwNew">＋ New world</button>'+
+    ix.map(e=>`<span class="mw" data-id="${e.id}">${(e.name||'world').slice(0,26).replace(/</g,'&lt;')}<i data-del="${e.id}">✕</i></span>`).join('');
+  document.getElementById('mwNew').onclick=()=>{bldWorld=null;applyWorld(starterWorld());bldOpen();};
+  host.querySelectorAll('.mw[data-id]').forEach(el=>el.onclick=ev=>{
+    if(ev.target.dataset&&ev.target.dataset.del){deleteWorld(ev.target.dataset.del);renderWorldStrip();ev.stopPropagation();return;}
+    const w=loadWorld(el.dataset.id);if(w){bldWorld=null;applyWorld(w);}
+  });
+}
+document.getElementById('glxNew').addEventListener('click',()=>{bldClose();bldWorld=null;wdForcedTheme=null;setTimeout(renderWorldStrip,50);});
+renderWorldStrip();
 
 startLanding();
 </script>
