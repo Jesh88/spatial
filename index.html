@@ -3746,7 +3746,8 @@ function wdHT(x,z){return wdH(x,z)*wdAmp;}
 let wdForcedTheme=null;// set by the builder; null → auto-pick from site character
 const WD_THEME_LABEL={dunes:'Dusk Dunes',peaks:'Midnight Peaks',neon:'Neon Expanse',vale:'Verdant Vale',isles:'Glass Isles','void':'Event Horizon',
   gallery:'Null Gallery',terrace:'Amber Terrace',stage:'Pulse Stage',bazaar:'Night Bazaar',summit:'Frost Summit',archive:'Ivory Archive',
-  dawn:'Dawn Market',prestige:'Maison Prestige',impulse:'Impulse Arena',warehouse:'Iron Warehouse',motion:'Kinetic Motion',ride:'Ridge Trail'};
+  dawn:'Dawn Market',prestige:'Maison Prestige',impulse:'Impulse Arena',warehouse:'Iron Warehouse',motion:'Kinetic Motion',ride:'Ridge Trail',
+  meadow:'Noon Meadow',shore:'Sunlit Shore',candy:'Candy Fields',paper:'Paper Studio',autumn:'Amber Autumn',blossom:'First Blossom'};
 /* theme config — data table consumed by buildWorld's generators (colors derive from the live accent) */
 function themeCfg(key,accC){
   const mix=(c,h,k)=>new THREE.Color(c).lerp(new THREE.Color(h),k);
@@ -3787,7 +3788,20 @@ function themeCfg(key,accC){
     motion:{amp:0.6,fog:0.009,exp:1.15,cel:'planet',land:'shard',scat:'rock',part:'plankton',orbits:1,nebula:1,
       sky:['#01040a','#04101e','#'+mix(accC,0x0a2a3a,.5).getHexString(),'#'+mix(accC,0x000000,.3).getHexString()],fogC:new THREE.Color(0x061420),terr:[0x081018,new THREE.Color(0x16303e)]},
     ride:{amp:1.6,fog:0.010,exp:1.08,cel:'sun',land:'tree',scat:'rock',part:'firefly',shoot:1,banner:1,
-      sky:['#04070e','#0e1c28','#2a4a52','#c26a3a'],fogC:new THREE.Color(0x14242c),terr:[0x141a16,new THREE.Color(0x3a4a3c)]}
+      sky:['#04070e','#0e1c28','#2a4a52','#c26a3a'],fogC:new THREE.Color(0x14242c),terr:[0x141a16,new THREE.Color(0x3a4a3c)]},
+    /* daylight biomes — no stars, bright hemisphere, clouds */
+    meadow:{day:1,clouds:1,amp:0.7,fog:0.0032,exp:1.02,cel:'sun',land:'tree',scat:'grass',part:'pollen',ink:'#1c2a20',
+      sky:['#4a90d8','#7ab8ec','#b8dcf6','#e8f4d8'],fogC:new THREE.Color(0xbcd8ea),terr:[0x4a8a3c,new THREE.Color(0x8fc26a)],hemi:[0xdaeefc,0x4a7a3c,0.9]},
+    shore:{day:1,clouds:1,water:1,amp:0.9,fog:0.0035,exp:1.02,cel:'sun',land:'tree',scat:'reed',part:'pollen',partC:0xffffff,ink:'#173242',
+      sky:['#2a78d0','#54a4e6','#98d0f2','#f2dcae'],fogC:new THREE.Color(0xaad2e8),terr:[0xe8d8a8,new THREE.Color(0x8fd0c8)],hemi:[0xf6e8cc,0xd0bc8a,0.85]},
+    candy:{day:1,clouds:1,amp:0.5,fog:0.0038,exp:1.02,cel:'sun',land:'crystal',scat:'rock',part:'snow',partC:0xff9ecf,ink:'#3a1430',
+      sky:['#e87ab2','#f2a2c8','#fac8dc','#faeec8'],fogC:new THREE.Color(0xf0b8d2),terr:[0xe87aae,new THREE.Color(0x8fd8c4)],hemi:[0xfad8ea,0xc07aa0,0.9]},
+    paper:{day:1,amp:0.45,fog:0.0028,exp:1.04,cel:'sun',land:'crystal',scat:'rock',part:'pollen',partC:0x8a8a84,ink:'#1a1a18',
+      sky:['#c8c8c2','#dcdcd6','#ecece8','#f8f8f6'],fogC:new THREE.Color(0xe0e0da),terr:[0xe8e8e2,new THREE.Color(0xc4c4bc)],hemi:[0xf4f4f0,0xb8b8b0,0.95]},
+    autumn:{day:1,clouds:1,amp:1.0,fog:0.0042,exp:1.0,cel:'sun',land:'tree',scat:'rock',part:'snow',partC:0xd88a3a,ink:'#2e1c0c',
+      sky:['#5a88b8','#98aecc','#d0b088','#e09858'],fogC:new THREE.Color(0xc0a888),terr:[0x8a5a2c,new THREE.Color(0xc28a4a)],hemi:[0xf0dcb8,0x7a5228,0.85]},
+    blossom:{day:1,clouds:1,amp:0.8,fog:0.0035,exp:1.02,cel:'sun',land:'tree',scat:'grass',part:'snow',partC:0xf8b8cc,ink:'#2a1c26',
+      sky:['#84aad4','#aac8e6','#d8c8d8','#f4d8e0'],fogC:new THREE.Color(0xc8d4e2),terr:[0x7aa86a,new THREE.Color(0xa8c88a)],hemi:[0xf4e4ec,0x628850,0.85]}
   };
   return CFG[key]||CFG.dunes;
 }
@@ -3804,11 +3818,12 @@ function wdPickTheme(site){
   return mood==='light'?'vale':'dunes';
 }
 /* floating text in the world — transparent canvas, glowing type, NO card box */
-function wdLabel(title,datum,accHex,big){
+function wdLabel(title,datum,accHex,big,ink){
   const W=1024,H=340,cv=document.createElement('canvas');cv.width=W;cv.height=H;const c=cv.getContext('2d');
   c.textAlign='center';
   c.font=(big?'700 92px':'600 72px')+' Archivo,"Helvetica Neue",sans-serif';
-  c.shadowColor='rgba(255,255,255,.9)';c.shadowBlur=26;c.fillStyle='#f5f9ff';
+  if(ink){c.shadowColor='rgba(255,255,255,.75)';c.shadowBlur=16;c.fillStyle=ink;}
+  else{c.shadowColor='rgba(255,255,255,.9)';c.shadowBlur=26;c.fillStyle='#f5f9ff';}
   const words=(title||'').split(' ');let line='',lines=[];
   for(const w of words){const t=line?line+' '+w:w;if(c.measureText(t).width>W-90&&line){lines.push(line);line=w;}else line=t;}
   if(line)lines.push(line);lines=lines.slice(0,2);
@@ -3816,6 +3831,16 @@ function wdLabel(title,datum,accHex,big){
   if(datum){c.shadowColor=accHex;c.shadowBlur=34;c.fillStyle=accHex;c.font='700 108px Archivo,sans-serif';c.fillText(String(datum).slice(0,12),W/2,y+26);}
   const tex=new THREE.CanvasTexture(cv);tex.anisotropy=8;
   return new THREE.Mesh(new THREE.PlaneGeometry(big?11:7.6,(big?11:7.6)*H/W),new THREE.MeshBasicMaterial({map:tex,transparent:true,toneMapped:false,depthWrite:false}));
+}
+/* which site section a card belongs to — explicit c.sec wins, else tag keywords, else spread */
+function wdSecOf(c,i){
+  if(c.sec&&['home','about','product','shop'].includes(c.sec))return c.sec;
+  if(c.hero||i===0)return 'home';
+  const t=(c.tag||'').toLowerCase();
+  if(/about|story|value|philosoph|atelier|process|how|guide|hour|schedul|speaker|topic|trade|guarant|team|mission/.test(t))return 'about';
+  if(/shop|sale|best|trend|new\b|new /.test(t)||/merch|depart|stall|pricin|ticket|preorder|reserve|book|subscrib|vip|join|sell|enquir|privat|visit|contact|newslet|deliver|cart|buy/.test(t))return 'shop';
+  if(/product|feature|collection|gear|menu|class|work|series|room|dining|listen|date|drop|doc|ecosystem|latest|catalog/.test(t))return 'product';
+  return ['about','product','shop'][i%3];
 }
 function buildWorld(){
   const cards=(glxBlocks&&glxBlocks.length)?glxBlocks:[];
@@ -3833,8 +3858,8 @@ function buildWorld(){
    const g=sx.createLinearGradient(0,0,0,256);g.addColorStop(0,cfg.sky[0]);g.addColorStop(0.55,cfg.sky[1]);g.addColorStop(0.8,cfg.sky[2]);g.addColorStop(1,cfg.sky[3]);
    sx.fillStyle=g;sx.fillRect(0,0,64,256);
    wdScene.add(new THREE.Mesh(new THREE.SphereGeometry(260,24,18),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(scv),side:THREE.BackSide,fog:false,toneMapped:false})));}
-  // stars
-  {const N=TH==='void'?1400:650,p=new Float32Array(N*3);
+  // stars (night worlds only)
+  if(!cfg.day){const N=TH==='void'?1400:650,p=new Float32Array(N*3);
    for(let i=0;i<N;i++){const a=Math.random()*6.2832,e=Math.random()*1.15+0.10,r=220;
     p[i*3]=Math.cos(a)*Math.cos(e)*r;p[i*3+1]=Math.sin(e)*r;p[i*3+2]=Math.sin(a)*Math.cos(e)*r;}
    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));
@@ -3854,7 +3879,13 @@ function buildWorld(){
     const pl=new THREE.Mesh(new THREE.SphereGeometry(26,32,24),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pcv),fog:false,toneMapped:false}));pl.position.set(95,58,-175);wdScene.add(pl);wdAnim.push({m:pl,rot:new THREE.Vector3(0,0.0006,0)});
     const rg=new THREE.Mesh(new THREE.TorusGeometry(40,2.6,2,90),new THREE.MeshBasicMaterial({color:mix(accC,0xffffff,.35).getHex(),transparent:true,opacity:.4,toneMapped:false,fog:false}));rg.position.copy(pl.position);rg.rotation.x=Math.PI/2.4;wdScene.add(rg);
     const L=new THREE.DirectionalLight(0x9a86ff,0.7);L.position.set(80,60,-80);wdScene.add(L);}
-  wdScene.add(new THREE.HemisphereLight(TH==='vale'?0xbcd6b8:0x8fa3cc,0x0c0e18,TH==='vale'?0.95:0.75));
+  wdScene.add(cfg.hemi?new THREE.HemisphereLight(cfg.hemi[0],cfg.hemi[1],cfg.hemi[2])
+    :new THREE.HemisphereLight(TH==='vale'?0xbcd6b8:0x8fa3cc,0x0c0e18,TH==='vale'?0.95:0.75));
+  if(cfg.clouds){// day worlds: soft white clouds drifting overhead
+    for(let i=0;i<9;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('rgba(255,255,255,.95)','rgba(255,255,255,.35)'),transparent:true,opacity:.55,depthWrite:false,fog:false}));
+      const sc=26+Math.random()*30;s.scale.set(sc,sc*.36,1);
+      s.position.set((Math.random()-.5)*180,36+Math.random()*22,(Math.random()-.5)*180);
+      wdScene.add(s);wdAnim.push({m:s,mist:.5+Math.random()*.7});}}
   // terrain (lowpoly, theme-tinted ridges)
   {const S=220,SEG=110,geo=new THREE.PlaneGeometry(S,S,SEG,SEG);geo.rotateX(-Math.PI/2);
    const pos=geo.attributes.position,col=new Float32Array(pos.count*3);
@@ -3890,7 +3921,7 @@ function buildWorld(){
     p[i*3]=x;p[i*3+2]=z;
     p[i*3+1]=(MODE==='snow'||MODE==='rain')?Math.random()*34:(MODE==='plankton'?wdHT(x,z)+0.4+Math.random()*1.6:wdHT(x,z)+1+Math.random()*7);}
    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));
-   const pc=MODE==='snow'?0xeef4ff:MODE==='rain'?mix(accC,0x9fd4ff,.5).getHex():MODE==='pollen'?0xffe9a8:MODE==='plankton'?0x6ff7ff:mix(accC,0xffffff,.4).getHex();
+   const pc=cfg.partC!=null?cfg.partC:MODE==='snow'?0xeef4ff:MODE==='rain'?mix(accC,0x9fd4ff,.5).getHex():MODE==='pollen'?0xffe9a8:MODE==='plankton'?0x6ff7ff:mix(accC,0xffffff,.4).getHex();
    const pts=new THREE.Points(g,new THREE.PointsMaterial({color:pc,size:MODE==='rain'?0.06:MODE==='snow'?0.10:0.14,transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false}));
    wdScene.add(pts);wdAnim.push({m:pts,part:MODE});}
   // shooting star (reusable streak)
@@ -3944,11 +3975,35 @@ function buildWorld(){
       loadImgChain(card.img).then(im=>{if(!im)return;const tx=new THREE.Texture(im);tx.encoding=THREE.sRGBEncoding;tx.needsUpdate=true;holo.material.map=tx;holo.material.color.set(0xffffff);holo.material.needsUpdate=true;});
       const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.5,(big?9.5:6.2),8,1,true),new THREE.MeshBasicMaterial({color:accC,transparent:true,opacity:.15,blending:THREE.AdditiveBlending,depthWrite:false}));
       beam.position.set(x,gy+(big?4.75:3.1),z);wdScene.add(beam);}
-    const lab=wdLabel(card.title||'',card.datum&&card.datum.value,accHex,big);
+    const lab=wdLabel(card.title||'',card.datum&&card.datum.value,accHex,big,cfg.ink);
     lab.position.set(x,gy+(big?16.6:(card.img?11.2:5)),z);lab.userData.idx=i;wdScene.add(lab);wdObjs.push(lab);
     wdAnim.push({m:lab,bob:.22,ph:Math.random()*6.28,baseY:lab.position.y,bill:true});
   };
-  cards.forEach((c,i)=>{
+  // card placement — builder worlds get SITE-SECTION districts (home center · about NW · product NE · shop far); crawls keep the spiral
+  const useZones=typeof bldWorld!=='undefined'&&bldWorld&&bldWorld.cards===cards;
+  if(useZones){
+    const Z={home:{x:0,z:0},about:{x:-34,z:-16},product:{x:34,z:-16},shop:{x:0,z:-44}};
+    const zn={home:[],about:[],product:[],shop:[]};
+    cards.forEach((c,i)=>{(zn[wdSecOf(c,i)]||zn.shop).push(i);});
+    for(const k in zn){
+      const list=zn[k],zc=Z[k];if(!list.length)continue;
+      list.forEach((ci,n)=>{
+        const c=cards[ci];
+        if(c.pos&&typeof c.pos.x==='number'){addLandmark(c,ci,c.pos.x,c.pos.z,!!c.hero||ci===0);return;}
+        if(k==='home'&&n===0){addLandmark(c,ci,0,0,true);return;}
+        const cnt=Math.max(1,list.length-(k==='home'?1:0)),m=k==='home'?n-1:n;
+        const ang=(m/cnt)*6.2832+(k==='home'?0.6:2.1),r=(k==='home'?14:9)+(cnt>4?3:0);
+        addLandmark(c,ci,zc.x+Math.cos(ang)*r,zc.z+Math.sin(ang)*r,false);
+      });
+      if(k!=='home'){// floating district sign
+        const lab=wdLabel(k.toUpperCase(),null,accHex,true,cfg.ink);
+        lab.material.opacity=.42;
+        lab.position.set(zc.x,wdHT(zc.x,zc.z)+16,zc.z);
+        wdScene.add(lab);
+        wdAnim.push({m:lab,bob:.15,ph:Math.random()*6.28,baseY:lab.position.y,bill:true});
+      }
+    }
+  }else cards.forEach((c,i)=>{
     if(i===0){addLandmark(c,0,0,0,true);return;}
     const ang=i*2.39996,r=17+i*2.9;addLandmark(c,i,Math.cos(ang)*r,Math.sin(ang)*r,false);
   });
@@ -4008,7 +4063,7 @@ function buildWorld(){
   // ✎ user-placed items (builder) — registry-generated, selectable in edit mode
   wdItems=[];
   if(typeof bldWorld!=='undefined'&&bldWorld&&bldWorld.items&&bldWorld.items.length){
-    const ctx={accC,accHex,gY,mix,glowTex,anim:e=>wdAnim.push(e)};
+    const ctx={accC,accHex,gY,mix,glowTex,ink:cfg.ink,anim:e=>wdAnim.push(e)};
     bldWorld.items.forEach(it=>{
       const def=ITEM_REGISTRY[it.type];if(!def)return;
       try{
@@ -4022,7 +4077,7 @@ function buildWorld(){
   }
   // post
   wdComp=new THREE.EffectComposer(renderer);wdComp.addPass(new THREE.RenderPass(wdScene,wdCam));
-  wdBloom=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.75,0.85,0.62);wdComp.addPass(wdBloom);wdPulse=!!cfg.pulse;
+  wdBloom=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),cfg.day?0.18:0.75,0.85,cfg.day?0.97:0.62);wdComp.addPass(wdBloom);wdPulse=!!cfg.pulse;
   wdGrade=new THREE.ShaderPass(new THREE.ShaderMaterial({uniforms:{tDiffuse:{value:null},uTime:{value:0},uRes:{value:new THREE.Vector2(innerWidth,innerHeight)}},
     vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
     fragmentShader:`uniform sampler2D tDiffuse;uniform float uTime;uniform vec2 uRes;varying vec2 vUv;float hash(vec2 p){return fract(sin(dot(p,vec2(41.37,289.13)))*43758.5453);}
@@ -4515,7 +4570,13 @@ const TEMPLATES={
   impulse:{cat:'Shop · Bold promo',acc:'#ff3d7a',tag:'Loud grid, banners, pure energy'},
   warehouse:{cat:'Shop · Catalog',acc:'#f0a03a',tag:'Crate stacks under worklights'},
   motion:{cat:'Shop · Kinetic',acc:'#3ad5c8',tag:'Orbiting rings, nothing stands still'},
-  ride:{cat:'Shop · Outdoors',acc:'#ff7a3d',tag:'Dusk trail through high country'}
+  ride:{cat:'Shop · Outdoors',acc:'#ff7a3d',tag:'Dusk trail through high country'},
+  meadow:{cat:'Craft · Nature',acc:'#3a8a2c',tag:'Blue sky, clouds, waist-high grass'},
+  shore:{cat:'Beach · Resort',acc:'#0a9ab8',tag:'Turquoise water on white sand'},
+  candy:{cat:'Kids · Sweets',acc:'#ff5ba8',tag:'Pink hills under sprinkle rain'},
+  paper:{cat:'Minimal · Editorial',acc:'#e05a4a',tag:'A white paper world, ink accents'},
+  autumn:{cat:'Seasonal · Cozy',acc:'#c2601e',tag:'Falling leaves, golden light'},
+  blossom:{cat:'Spring · Boutique',acc:'#e86a9e',tag:'Petals drifting over green hills'}
 };
 const TEMPLATE_ITEMS={
   gallery:[['glowsprite',9,-12],['sphere',-9,-11],['beam',0,-17]],
@@ -4530,6 +4591,12 @@ const TEMPLATE_ITEMS={
   warehouse:[['gate',0,-15],['cubes',9,-10],['monolith',-11,-9]],
   motion:[['swarm',0,-13],['ringlet',9,-11],['octa',-9,-11]],
   ride:[['tree',9,-10],['arch',0,-16],['rock',-10,-11]],
+  meadow:[['tree',9,-10],['grasstuft',-8,-12],['grasstuft',12,3]],
+  shore:[['tree',9,-11],['glowsprite',-9,-12],['rock',12,4]],
+  candy:[['sphere',8,-10],['swarm',-8,-12],['arch',0,-16]],
+  paper:[['monolith',9,-11],['arch',0,-15],['rock',-9,-11]],
+  autumn:[['tree',8,-10],['tree',-9,-12],['rock',12,3]],
+  blossom:[['tree',9,-10],['arch',0,-15],['grasstuft',-9,-11]],
   dunes:[['crystal',8,-10],['glowsprite',-9,-14],['rock',12,4]],
   peaks:[['obsidian',9,-12],['beam',-8,-10],['rock',-13,6]],
   neon:[['pylon',8,-10],['ringlet',-8,-12],['cubes',12,2]],
@@ -4627,7 +4694,37 @@ const TEMPLATE_CARDS={
     {tag:'OUTFITTER',title:'Built for the long way home',summary:'Gear for people who take the trail over the highway, tested on this very ridge.',datum:{value:'est. 14',label:'years out here'},hero:true},
     {tag:'GEAR',title:'The essentials',summary:'Packs, layers, lights. One card per line — photograph them in the wild.'},
     {tag:'GUIDES',title:'Route guides',summary:'Free route maps with every order. The good kind, on paper.'},
-    {tag:'GUARANTEE',title:'Ride it. Break it. We fix it.',summary:'Lifetime repairs, no receipts, no lectures.',datum:{value:'∞',label:'warranty'}}]
+    {tag:'GUARANTEE',title:'Ride it. Break it. We fix it.',summary:'Lifetime repairs, no receipts, no lectures.',datum:{value:'∞',label:'warranty'}}],
+  meadow:[
+    {tag:'HERO',title:'Made slowly, under open sky',summary:'Small-batch goods from the workshop at the edge of the meadow. Walk the districts — about, product, shop.',datum:{value:'batch 12',label:'now open'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'Two hands, one meadow',summary:'We grow, cut, and craft everything within sight of this field.',sec:'about'},
+    {tag:'PRODUCT',title:'The summer line',summary:'Photograph each piece outdoors and give it a card here in the product district.',sec:'product'},
+    {tag:'SHOP',title:'Take some home',summary:'Everything ships in plain paper, tied with string.',datum:{value:'FREE',label:'shipping over $40'},sec:'shop'}],
+  shore:[
+    {tag:'HERO',title:'Ten steps from the water',summary:'A beach house shop and café where the tide sets the schedule.',datum:{value:'26°',label:'right now'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'Salt in everything',summary:'Started from a surfboard rack and a coffee machine. It grew.',sec:'about'},
+    {tag:'PRODUCT',title:'Boards, towels, tins',summary:'The shore essentials — each one photographed on this very sand.',sec:'product'},
+    {tag:'SHOP',title:'The beach shop',summary:'Open sunrise to sundown. Order online, collect at the shack.',datum:{value:'7am',label:'opens'},sec:'shop'}],
+  candy:[
+    {tag:'HERO',title:'Welcome to the sweetest place',summary:'A candy land where the sprinkles never stop falling. Mind the gumdrop hills.',datum:{value:'100%',label:'sugar'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'The candy makers',summary:'Three generations of dangerous sweet tooth, one copper kettle.',sec:'about'},
+    {tag:'PRODUCT',title:'The flavor lab',summary:'New flavors every month. Put each one on a card with a picture.',sec:'product'},
+    {tag:'SHOP',title:'Pick and mix',summary:'Build your own box — pay by weight, regret nothing.',datum:{value:'200g',label:'minimum joy'},sec:'shop'}],
+  paper:[
+    {tag:'HERO',title:'White space is the product',summary:'A studio journal in a paper-white world. Ink where it matters, silence everywhere else.',datum:{value:'№ 04',label:'issue'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'On restraint',summary:'Why we cut every third word and both of the fonts.',sec:'about'},
+    {tag:'PRODUCT',title:'The prints',summary:'Editions of fifty, signed in pencil, shipped flat.',sec:'product'},
+    {tag:'SHOP',title:'The paper shop',summary:'Prints, notebooks, and the pen we actually use.',datum:{value:'50',label:'per edition'},sec:'shop'}],
+  autumn:[
+    {tag:'HERO',title:'The season of good things',summary:'A harvest shop under falling leaves — preserves, wool, and candlelight.',datum:{value:'OCT',label:'harvest'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'From the orchard',summary:'Everything here grew within a mile of the farmhouse.',sec:'about'},
+    {tag:'PRODUCT',title:'The harvest table',summary:'Jams, cider, wool throws. One card each, photographed in the gold hour.',sec:'product'},
+    {tag:'SHOP',title:'The farm stand',summary:'Weekends only, while the season lasts.',datum:{value:'SAT–SUN',label:'open'},sec:'shop'}],
+  blossom:[
+    {tag:'HERO',title:'Everything begins in spring',summary:'A boutique under the blossom — petals fall, the collection blooms.',datum:{value:'SS26',label:'collection'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'The house style',summary:'Soft tailoring, garden colors, nothing that shouts.',sec:'about'},
+    {tag:'PRODUCT',title:'The spring edit',summary:'Twelve pieces, photographed under the trees. Give each its own card.',sec:'product'},
+    {tag:'SHOP',title:'Visit the boutique',summary:'Under the big blossom tree, or online with petals included.',datum:{value:'12',label:'pieces'},sec:'shop'}]
 };
 function renderTemplates(){
   const host=document.getElementById('tplGrid');if(!host)return;
@@ -4709,7 +4806,7 @@ const ITEM_REGISTRY={
     m.position.y=2.2;g.add(m);
     cx.anim({m,rot:new THREE.Vector3(0,.006,0),bob:.2,ph:Math.random()*6.28,baseY:m.position.y});return g;}},
   label:{cat:'Text',icon:'Ⓣ',name:'Label',make(p,cx){const g=new THREE.Group();
-    const lab=wdLabel(p.text||'Your text',p.datum||null,cx.accHex,false);lab.position.y=3.4;g.add(lab);
+    const lab=wdLabel(p.text||'Your text',p.datum||null,cx.accHex,false,cx.ink);lab.position.y=3.4;g.add(lab);
     cx.anim({m:lab,bob:.2,ph:Math.random()*6.28,baseY:lab.position.y,bill:true});return g;}},
   billboard:{cat:'Media',icon:'▣',name:'Image',make(p,cx){const g=new THREE.Group();
     const holo=new THREE.Mesh(new THREE.PlaneGeometry(6.5,4),new THREE.MeshBasicMaterial({color:0x0e131c,transparent:true,opacity:.96,toneMapped:false,side:THREE.DoubleSide}));
