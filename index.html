@@ -178,6 +178,10 @@
         <button id="analyze" type="button">Spatialize<b>→</b></button>
       </div>
       <div id="myworlds"></div>
+      <div id="ltpl">
+        <div class="ltpl-h">or build your own world</div>
+        <div class="ltpl-grid" id="tplGrid"></div>
+      </div>
     </div>
   </section>
 
@@ -384,6 +388,16 @@
   #myworlds .mw i{font-style:normal;opacity:.45;font-size:12px;padding:0 6px;border-radius:50%;}
   #myworlds .mw i:hover{opacity:1;color:#ff6478;}
   #myworlds .mw.new{border-style:dashed;color:color-mix(in srgb,var(--accent) 75%,#fff);padding-right:14px;}
+  /* landing — template gallery */
+  #ltpl{margin-top:36px;}
+  .ltpl-h{font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:rgba(220,230,248,.45);text-align:center;margin-bottom:14px;}
+  .ltpl-grid{display:grid;grid-template-columns:repeat(3,minmax(150px,196px));gap:10px;justify-content:center;}
+  .tpl{text-align:left;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px 14px;cursor:pointer;color:#e8eefb;backdrop-filter:blur(8px);transition:border-color .2s,box-shadow .2s;}
+  .tpl:hover{border-color:var(--tacc);box-shadow:0 0 24px -8px var(--tacc);}
+  .tpl b{display:block;font-family:var(--display);font-size:14px;}
+  .tpl span{display:inline-block;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--tacc);margin:4px 0 2px;}
+  .tpl em{display:block;font-style:normal;font-size:10.5px;color:rgba(200,214,238,.55);line-height:1.4;}
+  @media(max-width:640px){.ltpl-grid{grid-template-columns:1fr 1fr;}}
   </style>
   <style>
   #handui{position:fixed;right:18px;bottom:52px;z-index:30;display:none;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:none;}
@@ -4368,6 +4382,38 @@ function renderWorldStrip(){
 }
 document.getElementById('glxNew').addEventListener('click',()=>{bldClose();bldWorld=null;wdForcedTheme=null;setTimeout(renderWorldStrip,50);});
 renderWorldStrip();
+/* ---- template gallery — theme-flavored starting points (never a blank canvas) ---- */
+const TEMPLATES={
+  dunes:{cat:'Agency · Studio',acc:'#5b8cff',tag:'Warm dusk desert, crystal spires'},
+  peaks:{cat:'SaaS · Tech',acc:'#7c9cff',tag:'Aurora over midnight ridges'},
+  neon:{cat:'Startup · Store',acc:'#c25bff',tag:'Rain-slick cyber grid'},
+  vale:{cat:'Wellness · Food',acc:'#57d08a',tag:'Golden-hour green valley'},
+  isles:{cat:'Travel · Hotel',acc:'#4ec8e8',tag:'Moonlit water and glass isles'},
+  'void':{cat:'Crypto · AI',acc:'#8a5bff',tag:'A planet hangs in the dark'}
+};
+const TEMPLATE_ITEMS={
+  dunes:[['crystal',8,-10],['glowsprite',-9,-14],['rock',12,4]],
+  peaks:[['obsidian',9,-12],['beam',-8,-10],['rock',-13,6]],
+  neon:[['pylon',8,-10],['ringlet',-8,-12],['cubes',12,2]],
+  vale:[['tree',9,-9],['grasstuft',-7,-12],['glowsprite',13,3]],
+  isles:[['crystal',10,-12],['sphere',-9,-10],['ringlet',0,-16]],
+  'void':[['shard',9,-11],['octa',-9,-13],['beam',0,-18]]
+};
+function renderTemplates(){
+  const host=document.getElementById('tplGrid');if(!host)return;
+  host.innerHTML=Object.keys(WD_THEME_LABEL).map(k=>{
+    const t=TEMPLATES[k]||{cat:'World',acc:'#5b8cff',tag:''};
+    return `<button class="tpl" data-k="${k}" style="--tacc:${t.acc}"><b>${WD_THEME_LABEL[k]}</b><span>${t.cat}</span><em>${t.tag}</em></button>`;
+  }).join('');
+  host.querySelectorAll('.tpl').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.k,t=TEMPLATES[k]||{};
+    const w=starterWorld(k);
+    w.meta.accent=t.acc||'#5b8cff';w.meta.name=WD_THEME_LABEL[k]||'My World';
+    w.items=(TEMPLATE_ITEMS[k]||[]).map((s,i)=>({id:'i'+Date.now().toString(36)+i,type:s[0],pos:{x:s[1],z:s[2]},scale:s[3]||1,rot:0,params:{}}));
+    bldWorld=null;applyWorld(w);bldOpen();
+  });
+}
+renderTemplates();
 /* ---- item registry — placeable 3D elements (built at local origin; builder positions the group) ---- */
 const ITEM_REGISTRY={
   crystal:{cat:'Landmark',icon:'◆',name:'Crystals',make(p,cx){const g=new THREE.Group();
