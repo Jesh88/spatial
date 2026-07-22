@@ -3532,6 +3532,7 @@ addEventListener('resize',()=>{if(muOn&&muComp){muCam.aspect=innerWidth/innerHei
 
 /* ===================== ◆ SPATIAL VIEW — 2D site → extruded 3D objects (Spline/visionOS vibe) ===================== */
 let spScene=null,spCam=null,spComp=null,spGrade2=null,spRAF=null,spCards=[],spDeco=[],spOn=false,spLast=0,spMX=0,spMY=0,spHover=-1,spGroup=null,spT0=0,spRings=0,spCamTZ=10.5;const SP_RD=7.6;
+let spItems=[];// builder items mirrored onto the spatial floor
 const spRay=new THREE.Raycaster(),spNdc=new THREE.Vector2();
 function spShapeRR(w,h,r){const s=new THREE.Shape();const x=-w/2,y=-h/2;s.moveTo(x+r,y);s.lineTo(x+w-r,y);s.quadraticCurveTo(x+w,y,x+w,y+r);s.lineTo(x+w,y+h-r);s.quadraticCurveTo(x+w,y+h,x+w-r,y+h);s.lineTo(x+r,y+h);s.quadraticCurveTo(x,y+h,x,y+h-r);s.lineTo(x,y+r);s.quadraticCurveTo(x,y,x+r,y);return s;}
 function spCRR(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
@@ -3655,6 +3656,24 @@ function buildSpatial(){
       float R=texture2D(tDiffuse,uv-d*ca).r,G=texture2D(tDiffuse,uv).g,B=texture2D(tDiffuse,uv+d*ca).b;vec3 col=vec3(R,G,B);
       col=mix(col,col*col*(3.0-2.0*col),0.16);float g=hash(uv*uRes*0.5+fract(uTime)*91.0);col+=(g-0.5)*0.028;col*=smoothstep(1.35,0.32,r2*2.2);gl_FragColor=vec4(col,1.0);}`}),'tDiffuse');
   spComp.addPass(spGrade2);
+  // ✎ user-placed items — mirrored onto the spatial floor as set dressing
+  spItems=[];
+  if(typeof bldWorld!=='undefined'&&bldWorld&&bldWorld.items&&bldWorld.items.length){
+    const mix2=(c,h,k)=>new THREE.Color(c).lerp(new THREE.Color(h),k);
+    const glowTex2=(inner,outer)=>{const gcv=document.createElement('canvas');gcv.width=128;gcv.height=128;const gx=gcv.getContext('2d');
+      const rg=gx.createRadialGradient(64,64,4,64,64,64);rg.addColorStop(0,inner);rg.addColorStop(.3,outer);rg.addColorStop(1,'rgba(0,0,0,0)');gx.fillStyle=rg;gx.fillRect(0,0,128,128);return new THREE.CanvasTexture(gcv);};
+    const ictx={accC,accHex:'#'+accC.getHexString(),gY:()=>0,mix:mix2,glowTex:glowTex2,anim:()=>{}};
+    bldWorld.items.forEach(it=>{
+      const def=ITEM_REGISTRY[it.type];if(!def)return;
+      try{
+        const g=def.make(it.params||{},ictx);if(!g)return;
+        g.position.set(it.pos.x*0.35,0,-6+it.pos.z*0.3);
+        g.scale.setScalar((it.scale||1)*0.55);g.rotation.y=it.rot||0;
+        g.traverse(o=>{o.userData.itemId=it.id;});
+        spScene.add(g);spItems.push({id:it.id,g});
+      }catch(e){}
+    });
+  }
   spT0=performance.now();spHover=-1;spAcc=acc;
 }
 let spAcc='',spAccChk=0;
@@ -3693,7 +3712,7 @@ function showSpatial(){
 function hideSpatial(skipRestore){
   spOn=false;if(spRAF){cancelAnimationFrame(spRAF);spRAF=null;}
   if(spScene){spScene.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(m&&m.map)m.map.dispose();m&&m.dispose&&m.dispose();});}});spScene=null;}
-  spCards=[];spDeco=[];spComp=null;spGroup=null;spHover=-1;
+  spCards=[];spDeco=[];spItems=[];spComp=null;spGroup=null;spHover=-1;
   if(skipRestore)return;
   const cv=document.getElementById('c');if(cv)cv.style.display='';
   ['glx','glxbg'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='';});
@@ -3962,7 +3981,7 @@ function buildWorld(){
   // ✎ user-placed items (builder) — registry-generated, selectable in edit mode
   wdItems=[];
   if(typeof bldWorld!=='undefined'&&bldWorld&&bldWorld.items&&bldWorld.items.length){
-    const ctx={accC,accHex,gY,mix,glowTex};
+    const ctx={accC,accHex,gY,mix,glowTex,anim:e=>wdAnim.push(e)};
     bldWorld.items.forEach(it=>{
       const def=ITEM_REGISTRY[it.type];if(!def)return;
       try{
@@ -4045,15 +4064,30 @@ function hideWorld(skipRestore){
   if(!glxRAF)glxFrame();
 }
 (function(){let down=false,px=0,py=0,moved=0;
-  addEventListener('pointerdown',e=>{if(!wdOn||spOverUI(e))return;down=true;moved=0;px=e.clientX;py=e.clientY;wdLastInput=performance.now();});
+  addEventListener('pointerdown',e=>{if(!wdOn||spOverUI(e))return;
+    if(typeof bldOn!=='undefined'&&bldOn&&wdItems.length){// edit mode: grab an item to drag it across the terrain
+      wdNdc.x=(e.clientX/innerWidth)*2-1;wdNdc.y=-(e.clientY/innerHeight)*2+1;wdRay.setFromCamera(wdNdc,wdCam);
+      const all=[];wdItems.forEach(w=>all.push(...w.meshes));
+      const hit=wdRay.intersectObjects(all,false)[0];
+      if(hit&&hit.object.userData.itemId){bldDragId=hit.object.userData.itemId;bldSelectItem(bldDragId);wdLastInput=performance.now();return;}}
+    down=true;moved=0;px=e.clientX;py=e.clientY;wdLastInput=performance.now();});
   addEventListener('pointermove',e=>{if(!wdOn)return;
+    if(typeof bldDragId!=='undefined'&&bldDragId){// dragging a builder item: follow the ground under the cursor
+      const it=bldWorld&&bldWorld.items.find(i=>i.id===bldDragId),lv=wdItems.find(w=>w.id===bldDragId);
+      if(it&&lv){wdNdc.x=(e.clientX/innerWidth)*2-1;wdNdc.y=-(e.clientY/innerHeight)*2+1;wdRay.setFromCamera(wdNdc,wdCam);
+        const pl=new THREE.Plane(new THREE.Vector3(0,1,0),-lv.g.position.y),pt=new THREE.Vector3();
+        if(wdRay.ray.intersectPlane(pl,pt)){it.pos={x:Math.round(pt.x*10)/10,z:Math.round(pt.z*10)/10};
+          lv.g.position.set(it.pos.x,(it.y!=null?it.y:0)+wdHT(it.pos.x,it.pos.z),it.pos.z);}}
+      return;}
     if(down){const dx=e.clientX-px,dy=e.clientY-py;px=e.clientX;py=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);
       wdYawT-=dx*0.0042;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-dy*0.0032));return;}
     if(spOverUI(e)){wdHover=-1;return;}
     wdNdc.x=(e.clientX/innerWidth)*2-1;wdNdc.y=-(e.clientY/innerHeight)*2+1;wdRay.setFromCamera(wdNdc,wdCam);
     const hits=wdRay.intersectObjects(wdObjs,false);wdHover=hits.length?(hits[0].object.userData.idx??-1):-1;
     document.getElementById('c').style.cursor=wdHover>=0?'pointer':'';});
-  addEventListener('pointerup',e=>{if(!wdOn)return;const was=down;down=false;
+  addEventListener('pointerup',e=>{if(!wdOn)return;
+    if(typeof bldDragId!=='undefined'&&bldDragId){bldDragId=null;saveWorld();return;}// drop the dragged item
+    const was=down;down=false;
     if(!was||moved>7||spOverUI(e))return;if(document.getElementById('glxdetail').classList.contains('show'))return;
     if(typeof bldOn!=='undefined'&&bldOn&&wdItems.length){// edit mode: clicking a placed item selects it in the panel
       wdNdc.x=(e.clientX/innerWidth)*2-1;wdNdc.y=-(e.clientY/innerHeight)*2+1;wdRay.setFromCamera(wdNdc,wdCam);
@@ -4161,15 +4195,24 @@ function handDraw(lm){
   const acc=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#5b8cff';
   const P=lm.map(p=>[(1-p.x)*cv.width,p.y*cv.height]);// selfie-mirrored → screen space
   c.lineCap='round';c.lineJoin='round';
-  // outer glow pass (accent), then bright core pass (white)
-  c.shadowColor=acc;c.shadowBlur=18;c.strokeStyle=acc;c.globalAlpha=.8;c.lineWidth=4.5;
-  c.beginPath();for(const[a,b]of HAND_BONES){c.moveTo(P[a][0],P[a][1]);c.lineTo(P[b][0],P[b][1]);}c.stroke();
-  c.shadowBlur=8;c.strokeStyle='rgba(255,255,255,.95)';c.globalAlpha=1;c.lineWidth=1.6;
-  c.beginPath();for(const[a,b]of HAND_BONES){c.moveTo(P[a][0],P[a][1]);c.lineTo(P[b][0],P[b][1]);}c.stroke();
-  // joints + bright fingertips
-  c.shadowColor=acc;c.shadowBlur=12;
-  for(let i=0;i<P.length;i++){const tip=(i===4||i===8||i===12||i===16||i===20);
-    c.fillStyle=tip?'#ffffff':acc;c.beginPath();c.arc(P[i][0],P[i][1],tip?4.5:2.6,0,7);c.fill();}
+  // soft friendly hand — plump translucent silhouette, no bones/joints
+  const path=()=>{c.beginPath();for(const[a,b]of HAND_BONES){c.moveTo(P[a][0],P[a][1]);c.lineTo(P[b][0],P[b][1]);}};
+  // fill the palm so it reads as a hand, not a wireframe
+  const palm=[0,1,5,9,13,17];
+  c.shadowColor=acc;c.shadowBlur=30;c.fillStyle=acc;c.globalAlpha=.16;
+  c.beginPath();c.moveTo(P[palm[0]][0],P[palm[0]][1]);for(let i=1;i<palm.length;i++)c.lineTo(P[palm[i]][0],P[palm[i]][1]);c.closePath();c.fill();
+  // wide soft aura stroke → chubby glowing fingers
+  c.strokeStyle=acc;c.globalAlpha=.22;c.lineWidth=26;c.shadowBlur=34;path();c.stroke();
+  // plump body stroke
+  c.globalAlpha=.34;c.lineWidth=14;c.shadowBlur=18;path();c.stroke();
+  // gentle warm-white heart
+  c.strokeStyle='rgba(255,255,255,.55)';c.globalAlpha=.8;c.lineWidth=6;c.shadowColor='rgba(255,255,255,.8)';c.shadowBlur=10;path();c.stroke();
+  // soft fingertip glows only (no skeletal joints)
+  c.shadowColor=acc;c.shadowBlur=16;
+  for(const i of [4,8,12,16,20]){
+    const g=c.createRadialGradient(P[i][0],P[i][1],1,P[i][0],P[i][1],9);
+    g.addColorStop(0,'rgba(255,255,255,.9)');g.addColorStop(1,'rgba(255,255,255,0)');
+    c.fillStyle=g;c.globalAlpha=.9;c.beginPath();c.arc(P[i][0],P[i][1],9,0,7);c.fill();}
   c.shadowBlur=0;c.globalAlpha=1;
 }
 const HAND_MODEL='https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
@@ -4271,7 +4314,7 @@ document.getElementById('handBtn').onclick=handStart;
 
 /* ===================== ✎ BUILDER — author your own spatial website ===================== */
 const WORLD_SCHEMA_V=1;
-let bldWorld=null,bldOn=false,bldCardIdx=0,bldSaveT=null,bldRebT=null;
+let bldWorld=null,bldOn=false,bldCardIdx=0,bldSaveT=null,bldRebT=null,bldDragId=null;
 function newWorldId(){return 'w'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function migrateWorld(w){
   if(!w||typeof w!=='object')return null;
@@ -4455,6 +4498,68 @@ const TEMPLATE_ITEMS={
   isles:[['crystal',10,-12],['sphere',-9,-10],['ringlet',0,-16]],
   'void':[['shard',9,-11],['octa',-9,-13],['beam',0,-18]]
 };
+const TEMPLATE_CARDS={
+  dunes:[
+    {tag:'STUDIO',title:'We build things people remember',summary:'A design studio for brands that want to feel inevitable. Strategy, identity, and product — end to end.',datum:{value:'24',label:'brands shipped'},hero:true},
+    {tag:'WORK',title:'Selected work',summary:'Add an image to this card and it becomes a floating hologram over the dunes. Put your best case study here.'},
+    {tag:'PROCESS',title:'How we work',summary:'Discovery, direction, delivery. Three phases, no surprises, weekly walkthroughs in your own spatial site.'},
+    {tag:'CONTACT',title:'Start a project',summary:'Tell us what you are making. We reply within two days.',datum:{value:'48h',label:'reply time'}}],
+  peaks:[
+    {tag:'PRODUCT',title:'Ship faster than gravity',summary:'The developer platform your team already knows how to use. Deploy, observe, and scale from one console.',datum:{value:'99.99%',label:'uptime'},hero:true},
+    {tag:'FEATURES',title:'Built for scale',summary:'Edge-first infrastructure, zero-config previews, and a CLI that stays out of your way.'},
+    {tag:'PRICING',title:'Start free, grow forever',summary:'A generous free tier. Pay only when your traffic does something worth paying for.',datum:{value:'$0',label:'to start'}},
+    {tag:'DOCS',title:'Five-minute quickstart',summary:'One command to install, one to deploy. Link this card to your documentation.'}],
+  neon:[
+    {tag:'DROP',title:'The new collection is live',summary:'Limited run. When it is gone, it is gone. Every piece rendered here as a landmark you can walk to.',datum:{value:'48',label:'pieces'},hero:true},
+    {tag:'SHOP',title:'Best sellers',summary:'Add product shots to these cards — each becomes a glowing display in the grid.'},
+    {tag:'STORY',title:'Made differently',summary:'Small batches, real materials, zero landfill. The story behind the label.'},
+    {tag:'SHIPPING',title:'Worldwide, fast',summary:'Free shipping over $50. Returns within 30 days, no questions.',datum:{value:'30d',label:'returns'}}],
+  vale:[
+    {tag:'WELCOME',title:'Feel better, live lighter',summary:'A wellness practice built around you — movement, breath, and rest in equal measure.',datum:{value:'7am',label:'first class'},hero:true},
+    {tag:'CLASSES',title:'This week at the studio',summary:'Morning flow, deep stretch, restorative evenings. Every level welcome.'},
+    {tag:'ABOUT',title:'Our philosophy',summary:'Small classes, real attention, and teachers who remember your name.'},
+    {tag:'VISIT',title:'Book your first session',summary:'Your first class is free. Link this card to your booking page.',datum:{value:'FREE',label:'first visit'}}],
+  isles:[
+    {tag:'STAY',title:'Nights that feel like elsewhere',summary:'A boutique stay on the water — glass, moonlight, and nothing on the schedule.',datum:{value:'12',label:'suites'},hero:true},
+    {tag:'ROOMS',title:'The suites',summary:'Add photos of each room — they float over the water as holograms.'},
+    {tag:'DINING',title:'Dinner on the deck',summary:'A short menu that changes with the tide. Breakfast until noon, always.'},
+    {tag:'BOOK',title:'Check availability',summary:'Direct bookings get the best rate. Link this card to your booking engine.',datum:{value:'−15%',label:'direct'}}],
+  'void':[
+    {tag:'PROTOCOL',title:'The network is the product',summary:'Decentralized by design, verifiable by anyone. This world is your whitepaper.',datum:{value:'40k',label:'TPS'},hero:true},
+    {tag:'HOW',title:'How it works',summary:'Three sentences, no jargon. If you need more, link the card to your docs.'},
+    {tag:'ECOSYSTEM',title:'Built on top',summary:'The projects already shipping on the protocol. Add their logos as card images.'},
+    {tag:'JOIN',title:'Run a node',summary:'One container, five minutes, real stake in the network.',datum:{value:'5min',label:'setup'}}],
+  gallery:[
+    {tag:'PORTFOLIO',title:'Work that speaks quietly',summary:'A selected body of work, hung in the void. Walk the plinths; click for detail.',datum:{value:'2026',label:'latest'},hero:true},
+    {tag:'SERIES',title:'Series one',summary:'Give every project a card and an image — each gets its own spotlight.'},
+    {tag:'ABOUT',title:'The artist',summary:'Two honest sentences about who you are and what you chase.'},
+    {tag:'ENQUIRE',title:'Commissions open',summary:'Currently accepting a small number of commissions for the fall.',datum:{value:'3',label:'slots'}}],
+  terrace:[
+    {tag:'TONIGHT',title:'Dinner under the lanterns',summary:'Seasonal plates, natural wine, and a terrace that stays warm long after sundown.',datum:{value:'★ 4.8',label:'rating'},hero:true},
+    {tag:'MENU',title:'The menu',summary:'Short and seasonal. Photograph three dishes and give each a card.'},
+    {tag:'HOURS',title:'Find us',summary:'Tuesday to Sunday, five till late. The corner of somewhere lovely.',datum:{value:'5pm',label:'doors'}},
+    {tag:'RESERVE',title:'Book a table',summary:'Walk-ins welcome at the bar. Link this card to reservations.'}],
+  stage:[
+    {tag:'TOUR',title:'The new era starts loud',summary:'New record out now. The world pulses with the beat — this is your stage.',datum:{value:'12',label:'cities'},hero:true},
+    {tag:'LISTEN',title:'Out everywhere',summary:'Link this card to the album. Add the cover as its image.'},
+    {tag:'DATES',title:'Tour dates',summary:'One card per city if you like — each becomes a pylon of light.'},
+    {tag:'MERCH',title:'The merch table',summary:'Limited tour pressing, prints, and the hoodie everyone asks about.',datum:{value:'LTD',label:'run'}}],
+  bazaar:[
+    {tag:'MARKET',title:'Open every night',summary:'A night market of good things — stalls glowing, everything handmade or hand-picked.',datum:{value:'40+',label:'makers'},hero:true},
+    {tag:'STALLS',title:'This week’s makers',summary:'Give each maker a card and a photo — their stall lights up in the bazaar.'},
+    {tag:'VISIT',title:'Plan your visit',summary:'Fridays and Saturdays, sundown till midnight. Free entry, bring cash.'},
+    {tag:'SELL',title:'Become a vendor',summary:'Applications open for the summer season.',datum:{value:'OPEN',label:'applications'}}],
+  summit:[
+    {tag:'SUMMIT',title:'Three days above the noise',summary:'The gathering for people building what is next — talks, trails, and long dinners.',datum:{value:'500',label:'seats'},hero:true},
+    {tag:'SPEAKERS',title:'The lineup',summary:'One card per keynote. Add headshots — they become banners on the ridge.'},
+    {tag:'SCHEDULE',title:'The program',summary:'Mornings for talks, afternoons for the mountain, evenings for each other.'},
+    {tag:'TICKETS',title:'Get your pass',summary:'Early passes include the lodge dinner.',datum:{value:'EARLY',label:'pricing on'}}],
+  archive:[
+    {tag:'JOURNAL',title:'Notes worth keeping',summary:'Essays and field notes, filed in bright daylight. Slow thoughts, carefully kept.',datum:{value:'120+',label:'entries'},hero:true},
+    {tag:'LATEST',title:'The latest entry',summary:'Link this card to your newest piece. Swap it out when you publish.'},
+    {tag:'TOPICS',title:'Standing threads',summary:'The themes you keep returning to. One card per thread works beautifully.'},
+    {tag:'SUBSCRIBE',title:'Letters, monthly',summary:'One email a month, no noise.',datum:{value:'1/mo',label:'cadence'}}]
+};
 function renderTemplates(){
   const host=document.getElementById('tplGrid');if(!host)return;
   host.innerHTML=Object.keys(WD_THEME_LABEL).map(k=>{
@@ -4465,6 +4570,7 @@ function renderTemplates(){
     const k=b.dataset.k,t=TEMPLATES[k]||{};
     const w=starterWorld(k);
     w.meta.accent=t.acc||'#5b8cff';w.meta.name=WD_THEME_LABEL[k]||'My World';
+    if(TEMPLATE_CARDS[k])w.cards=TEMPLATE_CARDS[k].map(c=>({img:null,href:'#',datum:null,...c}));
     w.items=(TEMPLATE_ITEMS[k]||[]).map((s,i)=>({id:'i'+Date.now().toString(36)+i,type:s[0],pos:{x:s[1],z:s[2]},scale:s[3]||1,rot:0,params:{}}));
     bldWorld=null;applyWorld(w);bldOpen();
   });
@@ -4494,7 +4600,7 @@ const ITEM_REGISTRY={
     const sh=new THREE.Mesh(new THREE.IcosahedronGeometry(1.1,0),
       new THREE.MeshStandardMaterial({color:0x141224,flatShading:true,roughness:.3,metalness:.7,emissive:cx.accC.getHex(),emissiveIntensity:.26}));
     sh.position.y=3.4;sh.rotation.set(Math.random()*3,Math.random()*3,0);g.add(sh);
-    wdAnim.push({m:sh,rot:new THREE.Vector3(.002,.003,.001),bob:.3,ph:Math.random()*6.28,baseY:0});return g;}},
+    cx.anim({m:sh,rot:new THREE.Vector3(.002,.003,.001),bob:.3,ph:Math.random()*6.28,baseY:sh.position.y});return g;}},
   torus:{cat:'Deco',icon:'◯',name:'Torus',make(p,cx){const g=new THREE.Group();
     const m=new THREE.Mesh(new THREE.TorusGeometry(1.3,.42,14,40),new THREE.MeshStandardMaterial({color:0xd8dee9,metalness:.95,roughness:.16}));
     m.position.y=1.9;m.rotation.x=.5;g.add(m);return g;}},
@@ -4532,15 +4638,42 @@ const ITEM_REGISTRY={
   ringlet:{cat:'FX',icon:'◌',name:'Neon ring',make(p,cx){const g=new THREE.Group();
     const m=new THREE.Mesh(new THREE.TorusGeometry(1.5,.08,10,50),new THREE.MeshBasicMaterial({color:cx.accC,transparent:true,opacity:.9,toneMapped:false}));
     m.position.y=2.2;g.add(m);
-    wdAnim.push({m,rot:new THREE.Vector3(0,.006,0),bob:.2,ph:Math.random()*6.28,baseY:0});return g;}},
+    cx.anim({m,rot:new THREE.Vector3(0,.006,0),bob:.2,ph:Math.random()*6.28,baseY:m.position.y});return g;}},
   label:{cat:'Text',icon:'Ⓣ',name:'Label',make(p,cx){const g=new THREE.Group();
     const lab=wdLabel(p.text||'Your text',p.datum||null,cx.accHex,false);lab.position.y=3.4;g.add(lab);
-    wdAnim.push({m:lab,bob:.2,ph:Math.random()*6.28,baseY:0,bill:true});return g;}},
+    cx.anim({m:lab,bob:.2,ph:Math.random()*6.28,baseY:lab.position.y,bill:true});return g;}},
   billboard:{cat:'Media',icon:'▣',name:'Image',make(p,cx){const g=new THREE.Group();
     const holo=new THREE.Mesh(new THREE.PlaneGeometry(6.5,4),new THREE.MeshBasicMaterial({color:0x0e131c,transparent:true,opacity:.96,toneMapped:false,side:THREE.DoubleSide}));
     holo.position.y=3.6;g.add(holo);
     if(p.img)loadImgChain(p.img).then(im=>{if(!im)return;const tx=new THREE.Texture(im);tx.encoding=THREE.sRGBEncoding;tx.needsUpdate=true;holo.material.map=tx;holo.material.color.set(0xffffff);holo.material.needsUpdate=true;});
-    wdAnim.push({m:holo,bob:.3,ph:Math.random()*6.28,baseY:0,bill:true});return g;}}
+    cx.anim({m:holo,bob:.3,ph:Math.random()*6.28,baseY:holo.position.y,bill:true});return g;}},
+  arch:{cat:'Structure',icon:'⌒',name:'Arch',make(p,cx){const g=new THREE.Group();
+    const m=new THREE.Mesh(new THREE.TorusGeometry(2.6,.3,10,40,Math.PI),
+      new THREE.MeshStandardMaterial({color:0x161a28,metalness:.7,roughness:.3,emissive:cx.accC.getHex(),emissiveIntensity:.18}));
+    m.position.y=.1;g.add(m);return g;}},
+  gate:{cat:'Structure',icon:'∏',name:'Gate',make(p,cx){const g=new THREE.Group();
+    const mat=new THREE.MeshStandardMaterial({color:0x0c101c,metalness:.7,roughness:.35,emissive:cx.accC.getHex(),emissiveIntensity:.1});
+    [-1.7,1.7].forEach(dx=>{const c2=new THREE.Mesh(new THREE.BoxGeometry(.5,5,.5),mat);c2.position.set(dx,2.5,0);g.add(c2);});
+    const lin=new THREE.Mesh(new THREE.BoxGeometry(4.4,.4,.6),new THREE.MeshBasicMaterial({color:cx.accC,toneMapped:false}));
+    lin.position.y=5.2;g.add(lin);return g;}},
+  monolith:{cat:'Structure',icon:'▯',name:'Monolith',make(p,cx){const g=new THREE.Group();
+    const m=new THREE.Mesh(new THREE.BoxGeometry(1.6,6.5,.5),
+      new THREE.MeshStandardMaterial({color:0x080a12,metalness:.85,roughness:.2,emissive:cx.accC.getHex(),emissiveIntensity:.08}));
+    m.position.y=3.2;m.rotation.z=.03;g.add(m);return g;}},
+  fountain:{cat:'FX',icon:'⁂',name:'Fountain',make(p,cx){const g=new THREE.Group();
+    const bas=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.9,.5,20),
+      new THREE.MeshStandardMaterial({color:0x121826,metalness:.6,roughness:.3,emissive:cx.accC.getHex(),emissiveIntensity:.08}));
+    bas.position.y=.25;g.add(bas);
+    for(let k=0;k<5;k++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:cx.glowTex('#ffffff',cx.accHex),transparent:true,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false}));
+      s.scale.set(1.2,1.2,1);s.position.set((Math.random()-.5)*.9,1+k*.7,(Math.random()-.5)*.9);g.add(s);
+      cx.anim({m:s,bob:.55,ph:k*1.3,baseY:s.position.y});}
+    return g;}},
+  swarm:{cat:'FX',icon:'✧',name:'Orb swarm',make(p,cx){const g=new THREE.Group();
+    for(let k=0;k<10;k++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:cx.glowTex('#ffffff',cx.accHex),transparent:true,opacity:.7,blending:THREE.AdditiveBlending,depthWrite:false}));
+      const sc=.5+Math.random()*.8;s.scale.set(sc,sc,1);
+      s.position.set((Math.random()-.5)*4,1.5+Math.random()*3,(Math.random()-.5)*4);g.add(s);
+      cx.anim({m:s,bob:.5+Math.random()*.5,ph:Math.random()*6.28,baseY:s.position.y});}
+    return g;}}
 };
 /* ---- items tab ---- */
 let bldItemId=null;
@@ -4581,9 +4714,11 @@ function bldLoadItem(){
 function bldSelectItem(id){bldItemId=id;bldShowTab('items');bldRenderItemSel();bldLoadItem();}
 document.getElementById('bpItemSel').addEventListener('change',e=>{bldItemId=e.target.value;bldLoadItem();});
 document.getElementById('bpItScale').addEventListener('input',e=>{const it=bldItem();if(!it)return;it.scale=+e.target.value;
-  const lv=bldLiveItem();if(lv)lv.g.scale.setScalar(it.scale);saveWorld();});
+  const lv=bldLiveItem();if(lv)lv.g.scale.setScalar(it.scale);
+  const ls=spItems.find(w=>w.id===it.id);if(ls)ls.g.scale.setScalar(it.scale*0.55);saveWorld();});
 document.getElementById('bpItRot').addEventListener('input',e=>{const it=bldItem();if(!it)return;it.rot=+e.target.value;
-  const lv=bldLiveItem();if(lv)lv.g.rotation.y=it.rot;saveWorld();});
+  const lv=bldLiveItem();if(lv)lv.g.rotation.y=it.rot;
+  const ls=spItems.find(w=>w.id===it.id);if(ls)ls.g.rotation.y=it.rot;saveWorld();});
 document.getElementById('bpItText').addEventListener('input',e=>{const it=bldItem();if(!it)return;(it.params=it.params||{}).text=e.target.value;saveWorld();requestRebuild();});
 document.getElementById('bpItImg').addEventListener('input',e=>{const it=bldItem();if(!it)return;(it.params=it.params||{}).img=e.target.value.trim()||null;saveWorld();requestRebuild();});
 document.getElementById('bpItMove').onclick=()=>{const it=bldItem();if(!it)return;it.pos=bldItemFwd();
