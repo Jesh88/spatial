@@ -3742,6 +3742,7 @@ addEventListener('resize',()=>{if(spOn&&spComp){spCam.aspect=innerWidth/innerHei
 /* ===================== ◈ WORLD — the website AS a Genie-style explorable world ===================== */
 let wdScene=null,wdCam=null,wdComp=null,wdGrade=null,wdRAF=null,wdOn=false,wdObjs=[],wdAnim=[],wdLast=0,wdHover=-1,
     wdYaw=0,wdPitch=-0.08,wdYawT=0,wdPitchT=-0.08,wdPos=null,wdHovH=2.6,wdKeys={},wdIntro=0,wdAcc='',wdAccChk=0,
+    wdMaxR=88,wdContentR=0,// leash: how far the world's content actually reaches — roaming is clamped to it
     wdTheme='dunes',wdAmp=1,wdLastInput=0,wdShoot=null,wdShootT=4;
 const wdRay=new THREE.Raycaster(),wdNdc=new THREE.Vector2();
 let wdItems=[];// user-placed builder items in the live scene: {id,g,meshes[]}
@@ -3865,7 +3866,7 @@ function buildWorld(){
   const accC=new THREE.Color(acc),accHex='#'+accC.getHexString();wdAcc=acc;
   wdTheme=wdForcedTheme||wdPickTheme(curSite||{});const TH=wdTheme;
   const mix=(c,h,k)=>new THREE.Color(c).lerp(new THREE.Color(h),k);
-  const cfg=themeCfg(TH,accC);wdAmp=cfg.amp;wdForm=cfg.form||'roll';
+  const cfg=themeCfg(TH,accC);wdAmp=cfg.amp;wdForm=cfg.form||'roll';wdContentR=0;
   if(!renderer){renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;}
   renderer.setSize(innerWidth,innerHeight);renderer.toneMappingExposure=cfg.exp;
   wdScene=new THREE.Scene();wdScene.fog=new THREE.FogExp2(cfg.fogC.getHex(),cfg.fog);
@@ -3978,6 +3979,7 @@ function buildWorld(){
         wdAnim.push({m:sh,rot:new THREE.Vector3(.002*(Math.random()<.5?-1:1),.003,.001),bob:.3,ph:Math.random()*6.28,baseY:sh.position.y});}}
     grp.traverse(o=>{if(o.isMesh)o.userData.idx=idx;});grp.children.forEach(m=>wdObjs.push(m));wdScene.add(grp);return grp;};
   const addLandmark=(card,i,x,z,big)=>{
+    wdContentR=Math.max(wdContentR,Math.hypot(x,z));
     const gy=gY(x,z);mkBase(x,z,big,i);
     if(cfg.plinth){// gallery: every card gets a museum plinth + spotlight cone
       const pl=new THREE.Mesh(new THREE.CylinderGeometry(big?3.4:2.2,big?3.8:2.5,.5,24),
@@ -4133,10 +4135,13 @@ function buildWorld(){
         g.position.set(it.pos.x,(it.y!=null?it.y:0)+gY(it.pos.x,it.pos.z),it.pos.z);
         g.scale.setScalar(it.scale||1);g.rotation.y=it.rot||0;
         const meshes=[];g.traverse(o=>{o.userData.itemId=it.id;if(o.isMesh||o.isSprite)meshes.push(o);});
+        wdContentR=Math.max(wdContentR,Math.hypot(it.pos.x,it.pos.z));
         wdScene.add(g);wdItems.push({id:it.id,g,meshes});
       }catch(e){}
     });
   }
+  // roaming leash: content extent + breathing room (never lets you drift into empty nothing)
+  wdMaxR=Math.max(34,Math.min(96,wdContentR+16));
   // post
   wdComp=new THREE.EffectComposer(renderer);wdComp.addPass(new THREE.RenderPass(wdScene,wdCam));
   wdBloom=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),cfg.day?0.18:0.75,0.85,cfg.day?0.97:0.62);wdComp.addPass(wdBloom);wdPulse=!!cfg.pulse;
@@ -4164,8 +4169,10 @@ function worldFrame(){wdRAF=requestAnimationFrame(worldFrame);const now=performa
   if(wdKeys['s']||wdKeys['arrowdown']){wdPos.x+=fx*sp;wdPos.z+=fz*sp;}
   if(wdKeys['a']||wdKeys['arrowleft']){wdPos.x-=fz*sp;wdPos.z+=fx*sp;}
   if(wdKeys['d']||wdKeys['arrowright']){wdPos.x+=fz*sp;wdPos.z-=fx*sp;}
-  const rr=Math.hypot(wdPos.x,wdPos.z);if(rr>88){wdPos.x*=88/rr;wdPos.z*=88/rr;}
-  if(wdIntro>=1){const ty=wdHT(wdPos.x,wdPos.z)+wdHovH;wdPos.y+=(ty-wdPos.y)*Math.min(1,dt*4);}
+  const rr=Math.hypot(wdPos.x,wdPos.z);if(rr>wdMaxR){wdPos.x*=wdMaxR/rr;wdPos.z*=wdMaxR/rr;}
+  if(wdIntro>=1){const gfl=wdForm==='islands'?-0.6:-1e9;const ty=Math.max(wdHT(wdPos.x,wdPos.z),gfl)+wdHovH;wdPos.y+=(ty-wdPos.y)*Math.min(1,dt*4);}
+  // eye level: after a moment of no input, ease the gaze back to the horizon
+  if(wdIntro>=1&&now-wdLastInput>2600)wdPitchT+=(-0.06-wdPitchT)*Math.min(1,dt*1.1);
   wdYaw+=(wdYawT-wdYaw)*Math.min(1,dt*9);wdPitch+=(wdPitchT-wdPitch)*Math.min(1,dt*9);
   wdCam.position.copy(wdPos);wdCam.position.y+=Math.sin(t*1.6)*0.05;
   wdCam.rotation.order='YXZ';wdCam.rotation.y=wdYaw;wdCam.rotation.x=wdPitch;
@@ -4225,7 +4232,7 @@ function hideWorld(skipRestore){
           lv.g.position.set(it.pos.x,(it.y!=null?it.y:0)+wdHT(it.pos.x,it.pos.z),it.pos.z);}}
       return;}
     if(down){const dx=e.clientX-px,dy=e.clientY-py;px=e.clientX;py=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);
-      wdYawT-=dx*0.0042;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-dy*0.0032));return;}
+      wdYawT-=dx*0.0042;wdPitchT=Math.max(-0.38,Math.min(0.30,wdPitchT-dy*0.0032));return;}
     if(spOverUI(e)){wdHover=-1;return;}
     wdNdc.x=(e.clientX/innerWidth)*2-1;wdNdc.y=-(e.clientY/innerHeight)*2+1;wdRay.setFromCamera(wdNdc,wdCam);
     const hits=wdRay.intersectObjects(wdObjs,false);wdHover=hits.length?(hits[0].object.userData.idx??-1):-1;
@@ -4437,7 +4444,7 @@ function handLoop(){
   // hover (aim) — always, so pinch knows what it's pointing at
   window.dispatchEvent(new PointerEvent('pointermove',{clientX:X,clientY:Y,bubbles:true}));
   // ✊ LOOK — fist pans the world camera directly (never touches the click pipeline → no accidental opens)
-  if(gFist&&wdOn&&!panelOpen&&handPrevX!=null){wdYawT-=(X-handPrevX)*0.006;wdPitchT=Math.max(-0.9,Math.min(0.55,wdPitchT-(Y-handPrevY)*0.005));wdLastInput=performance.now();}
+  if(gFist&&wdOn&&!panelOpen&&handPrevX!=null){wdYawT-=(X-handPrevX)*0.006;wdPitchT=Math.max(-0.38,Math.min(0.30,wdPitchT-(Y-handPrevY)*0.005));wdLastInput=performance.now();}
   // ✋ push / pull — glide (not while looking/clicking; 250ms settle after a pose change so pose swaps never read as depth)
   if(!gFist&&!gPinch&&!panelOpen&&(wdOn||spOn)&&performance.now()-handGestT>250&&Math.abs(dz)>0.018)
     window.dispatchEvent(new WheelEvent('wheel',{deltaY:-(dz-Math.sign(dz)*0.018)*420}));
