@@ -3757,6 +3757,7 @@ function wdH(x,z){ // terrain height — the form changes the geography, not jus
     return n>0.12?b*0.35+(n-0.12)*7:b*0.15-4.5;}// mounds rising from a mist void
   if(wdForm==='under')return b*0.7;// gentle seabed
   if(wdForm==='cavern')return b*0.4;// cave floor
+  if(wdForm==='voxel')return Math.round(b*0.9/1.5)*1.5;// stepped block heights
   return b;
 }
 function wdHT(x,z){return wdH(x,z)*wdAmp;}
@@ -3765,7 +3766,8 @@ let wdForcedTheme=null;// set by the builder; null → auto-pick from site chara
 const WD_THEME_LABEL={dunes:'Dusk Dunes',peaks:'Midnight Peaks',neon:'Neon Expanse',vale:'Verdant Vale',isles:'Coral Deep','void':'Event Horizon',
   gallery:'Null Gallery',terrace:'Amber Terrace',stage:'Pulse Stage',bazaar:'Night Bazaar',summit:'Frost Summit',archive:'Ivory Archive',
   dawn:'Dawn Market',prestige:'Maison Prestige',impulse:'Impulse Arena',warehouse:'Iron Warehouse',motion:'Kinetic Motion',ride:'Ridge Trail',
-  meadow:'Noon Meadow',shore:'Sunlit Shore',candy:'Candy Fields',paper:'Paper Studio',autumn:'Amber Autumn',blossom:'First Blossom'};
+  meadow:'Noon Meadow',shore:'Sunlit Shore',candy:'Candy Fields',paper:'Paper Studio',autumn:'Amber Autumn',blossom:'First Blossom',
+  grid:'The Grid',gotham:'Gotham Night',stark:'Arc Foundry',toon:'Toon Valley',voxel:'Blockworld'};
 /* theme config — data table consumed by buildWorld's generators (colors derive from the live accent) */
 function themeCfg(key,accC){
   const mix=(c,h,k)=>new THREE.Color(c).lerp(new THREE.Color(h),k);
@@ -3819,7 +3821,18 @@ function themeCfg(key,accC){
     autumn:{day:1,clouds:1,amp:1.0,fog:0.0042,exp:1.0,cel:'sun',land:'tree',scat:'rock',part:'snow',partC:0xd88a3a,ink:'#2e1c0c',
       sky:['#5a88b8','#98aecc','#d0b088','#e09858'],fogC:new THREE.Color(0xc0a888),terr:[0x8a5a2c,new THREE.Color(0xc28a4a)],hemi:[0xf0dcb8,0x7a5228,0.85]},
     blossom:{day:1,clouds:1,amp:0.8,fog:0.0035,exp:1.02,cel:'sun',land:'tree',scat:'grass',part:'snow',partC:0xf8b8cc,ink:'#2a1c26',
-      sky:['#84aad4','#aac8e6','#d8c8d8','#f4d8e0'],fogC:new THREE.Color(0xc8d4e2),terr:[0x7aa86a,new THREE.Color(0xa8c88a)],hemi:[0xf4e4ec,0x628850,0.85]}
+      sky:['#84aad4','#aac8e6','#d8c8d8','#f4d8e0'],fogC:new THREE.Color(0xc8d4e2),terr:[0x7aa86a,new THREE.Color(0xa8c88a)],hemi:[0xf4e4ec,0x628850,0.85]},
+    /* iconic looks */
+    grid:{amp:0.1,fog:0.010,exp:1.18,cel:'ring',land:'pylon',scat:'cube',part:'firefly',form:'city',bldH:[6,22],bldStyle:'edge',grid:1,trails:1,
+      sky:['#000103','#00060c','#001018','#002a36'],fogC:new THREE.Color(0x001018),terr:[0x010409,new THREE.Color(0x02222c)]},
+    gotham:{amp:0.3,fog:0.014,exp:1.02,cel:'moon',land:'obsidian',scat:'rock',part:'rain',partC:0x8a99b0,form:'city',bldH:[12,36],batSignal:1,
+      sky:['#04050a','#0a0c14','#181a22','#3a3428'],fogC:new THREE.Color(0x0e1016),terr:[0x0a0b10,new THREE.Color(0x1e2028)]},
+    stark:{day:1,amp:0.22,fog:0.004,exp:1.06,cel:'sun',land:'pylon',scat:'cube',part:'firefly',partC:0xffc46a,ink:'#231508',arc:1,orbits:1,
+      sky:['#c8d4e0','#dae4ec','#eef2f4','#faf6ec'],fogC:new THREE.Color(0xdce4ea),terr:[0xd8dce0,new THREE.Color(0xb0b8c0)],hemi:[0xffffff,0xb8bcc2,1.1]},
+    toon:{day:1,clouds:1,amp:0.95,fog:0.0028,exp:1.12,cel:'sun',land:'tree',scat:'grass',part:'pollen',partC:0xffffff,ink:'#173018',
+      sky:['#1e90ff','#4aaef8','#8fd0fa','#c8f0d0'],fogC:new THREE.Color(0x9fd4f2),terr:[0x3ec428,new THREE.Color(0x7ae04a)],hemi:[0xf0fbff,0x2e9a20,1.05]},
+    voxel:{day:1,amp:1.0,fog:0.0032,exp:1.08,cel:'sun',land:'tree',scat:'rock',part:'pollen',partC:0xffffff,ink:'#1c2a14',form:'voxel',
+      sky:['#3a8ae8','#6ab0f0','#a8d8f8','#d8f0fa'],fogC:new THREE.Color(0xa8ccec),terr:[0x4aa832,new THREE.Color(0x6ac842)],hemi:[0xeaf6ff,0x4a7a3c,1.0]}
   };
   return CFG[key]||CFG.dunes;
 }
@@ -3905,8 +3918,8 @@ function buildWorld(){
       const sc=26+Math.random()*30;s.scale.set(sc,sc*.36,1);
       s.position.set((Math.random()-.5)*180,36+Math.random()*22,(Math.random()-.5)*180);
       wdScene.add(s);wdAnim.push({m:s,mist:.5+Math.random()*.7});}}
-  // terrain (lowpoly, theme-tinted ridges)
-  {const S=220,SEG=110,geo=new THREE.PlaneGeometry(S,S,SEG,SEG);geo.rotateX(-Math.PI/2);
+  // terrain (lowpoly, theme-tinted ridges) — voxel worlds build a cube field instead
+  if(cfg.form!=='voxel'){const S=220,SEG=110,geo=new THREE.PlaneGeometry(S,S,SEG,SEG);geo.rotateX(-Math.PI/2);
    const pos=geo.attributes.position,col=new Float32Array(pos.count*3);
    const base=new THREE.Color(cfg.terr[0]),ridge=cfg.terr[1].isColor?cfg.terr[1]:new THREE.Color(cfg.terr[1]);
    for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),h=wdHT(x,z);pos.setY(i,h);
@@ -4076,10 +4089,12 @@ function buildWorld(){
     for(let yy=6;yy<122;yy+=10)for(let xx=6;xx<58;xx+=10){if(Math.random()<0.5){
       wx.fillStyle=Math.random()<0.8?'#cfe0ff':'#ffd9a0';wx.globalAlpha=.35+Math.random()*.6;wx.fillRect(xx,yy,6,5);}}
     wx.globalAlpha=1;const wtex=new THREE.CanvasTexture(wcv);wtex.anisotropy=4;
-    const bh=cfg.bldH||[6,24];
+    const bh=cfg.bldH||[6,24],edge=cfg.bldStyle==='edge';
     const bgeo=new THREE.BoxGeometry(1,1,1);bgeo.translate(0,0.5,0);
-    const bmat=new THREE.MeshStandardMaterial({color:0x0a0e18,roughness:.5,metalness:.5,map:wtex,emissive:0xbcd0ff,emissiveIntensity:.55,emissiveMap:wtex});
-    const NB=130,imB=new THREE.InstancedMesh(bgeo,bmat,NB);
+    const bmat=edge
+      ?new THREE.MeshStandardMaterial({color:0x01050a,roughness:.3,metalness:.7})// tron: black monoliths…
+      :new THREE.MeshStandardMaterial({color:0x0a0e18,roughness:.5,metalness:.5,map:wtex,emissive:0xbcd0ff,emissiveIntensity:.55,emissiveMap:wtex});
+    const NB=edge?90:130,imB=new THREE.InstancedMesh(bgeo,bmat,NB);
     const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),E=new THREE.Euler(),S=new THREE.Vector3(),P=new THREE.Vector3();
     let placed=0;
     for(let gx=-84;gx<=84&&placed<NB;gx+=12)for(let gz=-84;gz<=84&&placed<NB;gz+=12){
@@ -4089,8 +4104,50 @@ function buildWorld(){
       if(Math.random()<0.34)continue;
       const h=bh[0]+Math.random()*(bh[1]-bh[0]),w=2.4+Math.random()*2.6;
       P.set(x,wdHT(x,z)-0.2,z);S.set(w,h,w);E.set(0,Math.random()<.5?0:Math.PI/2,0);Q.setFromEuler(E);
-      M.compose(P,Q,S);imB.setMatrixAt(placed++,M);}
+      M.compose(P,Q,S);imB.setMatrixAt(placed++,M);
+      if(edge){// …outlined in living light
+        const eg=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w,h,w)),
+          new THREE.LineBasicMaterial({color:accC,transparent:true,opacity:.85,toneMapped:false}));
+        eg.position.set(x,wdHT(x,z)-0.2+h/2,z);wdScene.add(eg);}}
     imB.count=placed;wdScene.add(imB);}
+  if(cfg.form==='voxel'){// blockworld: the terrain IS cubes (color-graded by height) + flat slab clouds
+    const step=3,half=57,geo=new THREE.BoxGeometry(step,step,step);
+    const mat=new THREE.MeshStandardMaterial({roughness:.9,metalness:0,flatShading:true});
+    const cells=[];for(let x=-half;x<=half;x+=step)for(let z=-half;z<=half;z+=step)cells.push([x,z]);
+    const im3=new THREE.InstancedMesh(geo,mat,cells.length);
+    const M2=new THREE.Matrix4(),col=new THREE.Color();
+    cells.forEach(([x,z],i)=>{const h=wdHT(x,z);M2.makeTranslation(x,h-step/2,z);im3.setMatrixAt(i,M2);
+      col.setHex(h>3?0x9aa0a8:h>0?0x4aa832:h>-1.6?0x8a6a3c:0xd8c88a);im3.setColorAt(i,col);});
+    if(im3.instanceColor)im3.instanceColor.needsUpdate=true;
+    wdScene.add(im3);
+    for(let i=0;i<8;i++){const c3=new THREE.Mesh(new THREE.BoxGeometry(12+Math.random()*10,1.2,8+Math.random()*6),
+      new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.85,fog:false}));
+      c3.position.set((Math.random()-.5)*150,32+Math.random()*8,(Math.random()-.5)*150);wdScene.add(c3);wdAnim.push({m:c3,mist:.6});}}
+  if(cfg.trails){// the grid: light-cycle trail walls racing the streets
+    for(let i=0;i<7;i++){const alongX=i%2,L=26+Math.random()*44;
+      const w=new THREE.Mesh(new THREE.BoxGeometry(alongX?L:0.22,2.0,alongX?0.22:L),
+        new THREE.MeshBasicMaterial({color:accC,transparent:true,opacity:.8,toneMapped:false,blending:THREE.AdditiveBlending,depthWrite:false}));
+      const x=(Math.random()-.5)*130,z=(Math.random()-.5)*130;
+      w.position.set(x,1.0+wdHT(x,z),z);wdScene.add(w);}}
+  if(cfg.batSignal){// gotham: a searchlight burning a disc into the cloud deck
+    const bx=-26,bz=-48,gy4=wdHT(bx,bz);
+    const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.2,3.2,60,18,1,true),
+      new THREE.MeshBasicMaterial({color:0xfff2c8,transparent:true,opacity:.12,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+    beam.position.set(bx,gy4+30,bz);beam.rotation.z=.16;wdScene.add(beam);
+    const disc=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#fff6d8','#c2a860'),transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+    disc.scale.set(26,26,1);disc.position.set(bx-9,gy4+58,bz);wdScene.add(disc);
+    const cloudDeck=new THREE.Mesh(new THREE.PlaneGeometry(500,500),new THREE.MeshBasicMaterial({color:0x12141c,transparent:true,opacity:.55,fog:false}));
+    cloudDeck.rotation.x=Math.PI/2;cloudDeck.position.y=62;wdScene.add(cloudDeck);}
+  if(cfg.arc){// foundry: a giant gyroscopic arc core humming over the plaza
+    const core=new THREE.Group();core.position.set(0,9,-24);
+    const glow2=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#ffffff','#7ae4ff'),transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));
+    glow2.scale.set(10,10,1);core.add(glow2);
+    for(let i=0;i<3;i++){const rg=new THREE.Mesh(new THREE.TorusGeometry(4.2+i*1.5,.16,10,60),
+      new THREE.MeshStandardMaterial({color:i===1?0xc23a2a:0xd4af6a,metalness:.85,roughness:.25,emissive:i===1?0xc23a2a:0xd4af6a,emissiveIntensity:.35}));
+      rg.rotation.set(i*1.1,i*.7,0);core.add(rg);
+      wdAnim.push({m:rg,rot:new THREE.Vector3(.004+i*.002,.006-i*.002,.003)});}
+    wdScene.add(core);
+    const pl2=new THREE.PointLight(0x7ae4ff,.9,60);pl2.position.set(0,10,-24);wdScene.add(pl2);}
   if(cfg.form==='cavern'){// enclosed crystal cave: stalactite ceiling + glowing crystal light
     for(let i=0;i<46;i++){const a=Math.random()*6.2832,r=Math.sqrt(Math.random())*80,x=Math.cos(a)*r,z=Math.sin(a)*r,len=4+Math.random()*9;
       const st=new THREE.Mesh(new THREE.ConeGeometry(.5+Math.random()*1.2,len,5),
@@ -4650,7 +4707,12 @@ const TEMPLATES={
   candy:{cat:'Kids · Sweets',acc:'#ff5ba8',tag:'Pink hills under sprinkle rain'},
   paper:{cat:'Minimal · Editorial',acc:'#e05a4a',tag:'A white paper world, ink accents'},
   autumn:{cat:'Seasonal · Cozy',acc:'#c2601e',tag:'Falling leaves, golden light'},
-  blossom:{cat:'Spring · Boutique',acc:'#e86a9e',tag:'Petals drifting over green hills'}
+  blossom:{cat:'Spring · Boutique',acc:'#e86a9e',tag:'Petals drifting over green hills'},
+  grid:{cat:'Tech · Cyber',acc:'#00e5ff',tag:'Black city outlined in living light'},
+  gotham:{cat:'Noir · Vigilante',acc:'#f0c040',tag:'Rain, towers, a signal in the clouds'},
+  stark:{cat:'Lab · Hi-tech',acc:'#d4af6a',tag:'A bright foundry around an arc core'},
+  toon:{cat:'Fun · Playful',acc:'#ff8a00',tag:'Saturated hills straight from a cartoon'},
+  voxel:{cat:'Game · Blocky',acc:'#4aa832',tag:'A world built entirely of cubes'}
 };
 const TEMPLATE_ITEMS={
   gallery:[['glowsprite',9,-12],['sphere',-9,-11],['beam',0,-17]],
@@ -4671,6 +4733,11 @@ const TEMPLATE_ITEMS={
   paper:[['monolith',9,-11],['arch',0,-15],['rock',-9,-11]],
   autumn:[['tree',8,-10],['tree',-9,-12],['rock',12,3]],
   blossom:[['tree',9,-10],['arch',0,-15],['grasstuft',-9,-11]],
+  grid:[['ringlet',8,-10],['gate',0,-16],['beam',-9,-11]],
+  gotham:[['monolith',9,-11],['gate',0,-16],['beam',-10,-10]],
+  stark:[['ringlet',0,-14],['pylon',9,-10],['sphere',-9,-11]],
+  toon:[['tree',8,-9],['tree',-8,-11],['sphere',12,2]],
+  voxel:[['tree',9,-10],['cubes',-8,-11],['rock',12,3]],
   dunes:[['crystal',8,-10],['glowsprite',-9,-14],['rock',12,4]],
   peaks:[['obsidian',9,-12],['beam',-8,-10],['rock',-13,6]],
   neon:[['pylon',8,-10],['ringlet',-8,-12],['cubes',12,2]],
@@ -4798,15 +4865,41 @@ const TEMPLATE_CARDS={
     {tag:'HERO',title:'Everything begins in spring',summary:'A boutique under the blossom — petals fall, the collection blooms.',datum:{value:'SS26',label:'collection'},hero:true,sec:'home'},
     {tag:'ABOUT',title:'The house style',summary:'Soft tailoring, garden colors, nothing that shouts.',sec:'about'},
     {tag:'PRODUCT',title:'The spring edit',summary:'Twelve pieces, photographed under the trees. Give each its own card.',sec:'product'},
-    {tag:'SHOP',title:'Visit the boutique',summary:'Under the big blossom tree, or online with petals included.',datum:{value:'12',label:'pieces'},sec:'shop'}]
+    {tag:'SHOP',title:'Visit the boutique',summary:'Under the big blossom tree, or online with petals included.',datum:{value:'12',label:'pieces'},sec:'shop'}],
+  grid:[
+    {tag:'HERO',title:'Welcome to the system',summary:'A black city drawn in light. Every wall is a circuit, every street a trace.',datum:{value:'v9.0',label:'online'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'Inside the machine',summary:'Who builds the grid, and why the lights never go out.',sec:'about'},
+    {tag:'PRODUCT',title:'The programs',summary:'One card per product — each one glows on its own block.',sec:'product'},
+    {tag:'SHOP',title:'Upgrades',summary:'Access tiers, from visitor to architect.',datum:{value:'3',label:'tiers'},sec:'shop'}],
+  gotham:[
+    {tag:'HERO',title:'The city that never sleeps — watched',summary:'Rain on black towers, a signal burning in the cloud deck. Someone is on duty.',datum:{value:'24/7',label:'on watch'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'The night shift',summary:'Why this city needs watching, and who answers the light.',sec:'about'},
+    {tag:'PRODUCT',title:'The arsenal',summary:'Tools of the trade — one card per gadget, photographed in low light.',sec:'product'},
+    {tag:'SHOP',title:'Light the signal',summary:'Need help? You know where the switch is.',datum:{value:'1',label:'signal'},sec:'shop'}],
+  stark:[
+    {tag:'HERO',title:'Built in a workshop, worn to the stars',summary:'A bright foundry humming around an arc core. Everything here is a prototype of tomorrow.',datum:{value:'MK 12',label:'current build'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'The foundry',summary:'One engineer, three robots, unlimited coffee.',sec:'about'},
+    {tag:'PRODUCT',title:'The mark series',summary:'Every iteration on display — flight-tested, battle-scarred, signed.',sec:'product'},
+    {tag:'SHOP',title:'Commission a build',summary:'Serious enquiries only. The waitlist is the waitlist.',datum:{value:'Q4',label:'next slot'},sec:'shop'}],
+  toon:[
+    {tag:'HERO',title:'BOING! Welcome to the valley',summary:'A world with the saturation turned to eleven. Mind the bouncing.',datum:{value:'100%',label:'fun'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'Who draws this place',summary:'A tiny studio with very big markers.',sec:'about'},
+    {tag:'PRODUCT',title:'The characters',summary:'One card per character — give them portraits and catchphrases.',sec:'product'},
+    {tag:'SHOP',title:'The toy chest',summary:'Plushies, prints, and stickers that never peel.',datum:{value:'NEW',label:'drops friday'},sec:'shop'}],
+  voxel:[
+    {tag:'HERO',title:'Punch a tree. Build a world.',summary:'Everything here is made of blocks — including this sentence, probably.',datum:{value:'∞',label:'blocks'},hero:true,sec:'home'},
+    {tag:'ABOUT',title:'The server',summary:'Running since forever. Grief-free, family-friendly, dragon optional.',sec:'about'},
+    {tag:'PRODUCT',title:'The builds',summary:'Castles, farms, redstone nonsense — one card per build, screenshots welcome.',sec:'product'},
+    {tag:'SHOP',title:'Join the whitelist',summary:'Apply with your best build. Diamonds not required.',datum:{value:'64',label:'stack limit'},sec:'shop'}]
 };
 /* theme groups — the gallery and theme picker segregate by type */
 const THEME_GROUP={
   dunes:'Business',peaks:'Business','void':'Business',summit:'Business',archive:'Business',
   neon:'Shop',dawn:'Shop',prestige:'Shop',impulse:'Shop',warehouse:'Shop',motion:'Shop',ride:'Shop',bazaar:'Shop',
   gallery:'Creative',stage:'Creative',paper:'Creative',
-  vale:'Lifestyle',terrace:'Lifestyle',isles:'Lifestyle',meadow:'Lifestyle',shore:'Lifestyle',candy:'Lifestyle',autumn:'Lifestyle',blossom:'Lifestyle'};
-const THEME_GROUPS=['Business','Shop','Creative','Lifestyle'];
+  vale:'Lifestyle',terrace:'Lifestyle',isles:'Lifestyle',meadow:'Lifestyle',shore:'Lifestyle',candy:'Lifestyle',autumn:'Lifestyle',blossom:'Lifestyle',
+  grid:'Iconic',gotham:'Iconic',stark:'Iconic',toon:'Iconic',voxel:'Iconic'};
+const THEME_GROUPS=['Business','Shop','Creative','Lifestyle','Iconic'];
 let tplFilter='All';
 function renderTemplates(){
   const host=document.getElementById('tplGrid');if(!host)return;
