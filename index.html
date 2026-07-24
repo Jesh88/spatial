@@ -3758,6 +3758,7 @@ function wdH(x,z){ // terrain height — the form changes the geography, not jus
   if(wdForm==='under')return b*0.7;// gentle seabed
   if(wdForm==='cavern')return b*0.4;// cave floor
   if(wdForm==='voxel')return Math.round(b*0.9/1.5)*1.5;// stepped block heights
+  if(wdForm==='tron')return 0;// the Grid is a dead-flat mirror plane
   return b;
 }
 function wdHT(x,z){return wdH(x,z)*wdAmp;}
@@ -3823,8 +3824,8 @@ function themeCfg(key,accC){
     blossom:{day:1,clouds:1,amp:0.8,fog:0.0035,exp:1.02,cel:'sun',land:'tree',scat:'grass',part:'snow',partC:0xf8b8cc,ink:'#2a1c26',
       sky:['#84aad4','#aac8e6','#d8c8d8','#f4d8e0'],fogC:new THREE.Color(0xc8d4e2),terr:[0x7aa86a,new THREE.Color(0xa8c88a)],hemi:[0xf4e4ec,0x628850,0.85]},
     /* iconic looks */
-    grid:{amp:0.1,fog:0.010,exp:1.18,cel:'ring',land:'pylon',scat:'cube',part:'firefly',form:'city',bldH:[6,22],bldStyle:'edge',grid:1,trails:1,
-      sky:['#000103','#00060c','#001018','#002a36'],fogC:new THREE.Color(0x001018),terr:[0x010409,new THREE.Color(0x02222c)]},
+    grid:{amp:0,fog:0.0135,exp:1.25,cel:'ring',land:'pylon',scat:'none',part:'none',form:'tron',bldH:[8,34],bloom:1.25,bloomThresh:0,mark:'tron',
+      sky:['#000000','#000306','#00080f','#00161f'],fogC:new THREE.Color(0x000306),terr:[0x000000,new THREE.Color(0x001016)]},
     gotham:{amp:0.3,fog:0.014,exp:1.02,cel:'moon',land:'obsidian',scat:'rock',part:'rain',partC:0x8a99b0,form:'city',bldH:[12,36],batSignal:1,
       sky:['#04050a','#0a0c14','#181a22','#3a3428'],fogC:new THREE.Color(0x0e1016),terr:[0x0a0b10,new THREE.Color(0x1e2028)]},
     stark:{day:1,amp:0.22,fog:0.004,exp:1.06,cel:'sun',land:'pylon',scat:'cube',part:'firefly',partC:0xffc46a,ink:'#231508',arc:1,orbits:1,
@@ -3922,8 +3923,8 @@ function buildWorld(){
       const sc=26+Math.random()*30;s.scale.set(sc,sc*.36,1);
       s.position.set((Math.random()-.5)*180,36+Math.random()*22,(Math.random()-.5)*180);
       wdScene.add(s);wdAnim.push({m:s,mist:.5+Math.random()*.7});}}
-  // terrain (lowpoly, theme-tinted ridges) — voxel worlds build a cube field instead
-  if(cfg.form!=='voxel'){const S=220,SEG=110,geo=new THREE.PlaneGeometry(S,S,SEG,SEG);geo.rotateX(-Math.PI/2);
+  // terrain (lowpoly, theme-tinted ridges) — voxel builds cubes, tron builds a mirror plane
+  if(cfg.form!=='voxel'&&cfg.form!=='tron'){const S=220,SEG=110,geo=new THREE.PlaneGeometry(S,S,SEG,SEG);geo.rotateX(-Math.PI/2);
    const pos=geo.attributes.position,col=new Float32Array(pos.count*3);
    const base=new THREE.Color(cfg.terr[0]),ridge=cfg.terr[1].isColor?cfg.terr[1]:new THREE.Color(cfg.terr[1]);
    for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),h=wdHT(x,z);pos.setY(i,h);
@@ -3952,7 +3953,7 @@ function buildWorld(){
    for(let i=0;i<3;i++){const ms=new THREE.Sprite(new THREE.SpriteMaterial({map:mt,transparent:true,opacity:.15,depthWrite:false}));
     ms.scale.set(60,13,1);ms.position.set((Math.random()-.5)*60,1.7,(Math.random()-.5)*50);wdScene.add(ms);wdAnim.push({m:ms,mist:.3+i*.22});}}
   // atmosphere particles (per theme: fireflies / snow / rain / pollen / plankton)
-  {const MODE=cfg.part,N=MODE==='snow'?700:MODE==='rain'?900:MODE==='bubble'?520:420,p=new Float32Array(N*3);
+  if(cfg.part!=='none'){const MODE=cfg.part,N=MODE==='snow'?700:MODE==='rain'?900:MODE==='bubble'?520:420,p=new Float32Array(N*3);
    for(let i=0;i<N;i++){const a=Math.random()*6.2832,r=Math.sqrt(Math.random())*85,x=Math.cos(a)*r,z=Math.sin(a)*r;
     p[i*3]=x;p[i*3+2]=z;
     p[i*3+1]=(MODE==='snow'||MODE==='rain')?Math.random()*34:MODE==='bubble'?Math.random()*22:(MODE==='plankton'?wdHT(x,z)+0.4+Math.random()*1.6:wdHT(x,z)+1+Math.random()*7);}
@@ -4022,7 +4023,19 @@ function buildWorld(){
     wdContentR=Math.max(wdContentR,Math.hypot(x,z));
     const gy=gY(x,z),ang=Math.atan2(-x,-z);// face the plaza centre
     const face=(w,h,flat)=>{const m=wdFace(card,w,h,flat);m.userData.idx=i;wdObjs.push(m);return m;};
-    if(cfg.mark==='billboard'){// city: a tall lit SIGN on a pole, like a storefront marquee
+    if(cfg.mark==='tron'){// the Grid: a neon-framed data slab rising from the mirror, edges alight
+      const fw=big?11:8,fh=fw*0.72,fm=face(fw,fh);
+      const sy=gy+(big?7.5:5.6);
+      fm.position.set(x,sy,z);fm.rotation.y=ang;wdScene.add(fm);
+      const frame=new THREE.Mesh(new THREE.BoxGeometry(fw+.4,fh+.4,.3),new THREE.MeshBasicMaterial({color:0x000308,toneMapped:false}));
+      frame.position.set(x-Math.sin(ang)*0.22,sy,z-Math.cos(ang)*0.22);frame.rotation.y=ang;wdScene.add(frame);
+      const eg=new THREE.LineSegments(new THREE.EdgesGeometry(frame.geometry),new THREE.LineBasicMaterial({color:accC,transparent:true,opacity:.95,toneMapped:false,blending:THREE.AdditiveBlending}));
+      eg.position.copy(frame.position);eg.rotation.y=ang;wdScene.add(eg);
+      // a light column beneath, dropping to the mirror
+      const stem=new THREE.Mesh(new THREE.BoxGeometry(.3,sy-fh*0.5,.3),new THREE.MeshBasicMaterial({color:accC,toneMapped:false}));
+      stem.position.set(x,(sy-fh*0.5)/2,z);wdScene.add(stem);
+      const halo=new THREE.PointLight(accC.getHex(),.8,26);halo.position.set(x,sy,z);wdScene.add(halo);
+    }else if(cfg.mark==='billboard'){// city: a tall lit SIGN on a pole, like a storefront marquee
       const H=big?15:10.5,pole=new THREE.Mesh(new THREE.CylinderGeometry(.35,.5,H,8),new THREE.MeshStandardMaterial({color:0x0a0e16,metalness:.7,roughness:.4}));
       pole.position.set(x,gy+H/2,z);wdScene.add(pole);
       const fw=big?11:8,fh=fw*0.7,fm=face(fw,fh,cfg.ink?'light':0);
@@ -4104,7 +4117,7 @@ function buildWorld(){
     const ang=i*2.39996,r=17+i*2.9;addLandmark(c,i,Math.cos(ang)*r,Math.sin(ang)*r,false);
   });
   // ground scatter (instanced set dressing)
-  {const type=cfg.scat,n=240;
+  if(cfg.scat!=='none'){const type=cfg.scat,n=240;
    const geo=type==='grass'?new THREE.ConeGeometry(1,1,4):type==='cube'?new THREE.BoxGeometry(1,1,1):type==='reed'?new THREE.ConeGeometry(1,1,4):new THREE.TetrahedronGeometry(1);
    const mat=type==='grass'?new THREE.MeshStandardMaterial({color:mix(accC,0x2f6a3a,.75).getHex(),flatShading:true,roughness:.9}):
      type==='cube'?new THREE.MeshStandardMaterial({color:0x0c0f1a,roughness:.4,metalness:.6,emissive:accC.getHex(),emissiveIntensity:.5}):
@@ -4144,6 +4157,50 @@ function buildWorld(){
       ban.position.set(x+.6,gy2+h-1,z);ban.rotation.y=a;wdScene.add(ban);
       wdAnim.push({m:ban,rot:new THREE.Vector3(0,.004,0),bob:.12,ph:Math.random()*6.28,baseY:ban.position.y});}}
   // ---- world FORMS: structural set pieces ----
+  if(cfg.form==='tron'){// THE GRID — black mirror plane, neon grid, edge-lit monoliths, light-cycles
+    const cyan=accC,white=new THREE.Color(0xffffff);
+    // 1) reflective black floor — the signature Tron mirror
+    const mir=new THREE.Reflector(new THREE.PlaneGeometry(600,600),{clipBias:.003,
+      textureWidth:Math.min(innerWidth*devicePixelRatio,1600),textureHeight:Math.min(innerHeight*devicePixelRatio,1600),color:0x0b1014});
+    mir.rotation.x=-Math.PI/2;mir.position.y=0;wdScene.add(mir);
+    const glass=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.MeshBasicMaterial({color:0x000206,transparent:true,opacity:.62}));
+    glass.rotation.x=-Math.PI/2;glass.position.y=0.01;wdScene.add(glass);
+    // 2) the glowing grid — fine mesh + bright major lines, fading into black fog
+    const mkGrid=(size,step,hex,op,y)=>{const pts=[],h=size/2;
+      for(let i=-h;i<=h+0.001;i+=step){pts.push(-h,y,i,h,y,i,i,y,-h,i,y,h);}
+      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+      return new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:hex,transparent:true,opacity:op,toneMapped:false,blending:THREE.AdditiveBlending}));};
+    wdScene.add(mkGrid(360,4,cyan.getHex(),.16,0.02));
+    wdScene.add(mkGrid(360,20,cyan.getHex(),.5,0.03));
+    // 3) edge-lit monoliths on the grid (district plazas kept clear)
+    const twMat=new THREE.MeshStandardMaterial({color:0x00040a,roughness:.22,metalness:.9});
+    const clear=(x,z)=>Math.hypot(x,z)<18||Math.hypot(x+34,z+16)<14||Math.hypot(x-34,z+16)<14||Math.hypot(x,z+44)<14;
+    for(let gx=-90;gx<=90;gx+=15)for(let gz=-90;gz<=90;gz+=15){
+      const x=gx+(Math.random()-.5)*3,z=gz+(Math.random()-.5)*3;
+      if(clear(x,z)||Math.random()<.42)continue;
+      const w=3.4+Math.random()*3.6,h=cfg.bldH[0]+Math.random()*(cfg.bldH[1]-cfg.bldH[0]);
+      const box=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),twMat);box.position.set(x,h/2,z);wdScene.add(box);
+      const eg=new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry),
+        new THREE.LineBasicMaterial({color:(Math.random()<.15?0xff6a00:cyan.getHex()),transparent:true,opacity:.92,toneMapped:false,blending:THREE.AdditiveBlending}));
+      eg.position.copy(box.position);wdScene.add(eg);
+      // a bright seam band partway up
+      const band=new THREE.Mesh(new THREE.BoxGeometry(w+.05,.18,w+.05),new THREE.MeshBasicMaterial({color:cyan,toneMapped:false}));
+      band.position.set(x,h*(.4+Math.random()*.4),z);wdScene.add(band);}
+    // 4) light-cycles — bright heads gliding the avenues, dragging a glowing ribbon wall
+    for(let i=0;i<6;i++){const along=i%2,lane=(((i/2)|0)-1)*26+(Math.random()-.5)*6;
+      const L=60,wall=new THREE.Mesh(new THREE.BoxGeometry(along?L:0.14,2.1,along?0.14:L),
+        new THREE.MeshBasicMaterial({color:i<4?cyan:new THREE.Color(0xff6a00),transparent:true,opacity:.34,toneMapped:false,blending:THREE.AdditiveBlending,depthWrite:false}));
+      wall.position.set(along?0:lane,1.05,along?lane:0);wdScene.add(wall);
+      const head=new THREE.Mesh(new THREE.BoxGeometry(along?1.4:0.5,1.3,along?0.5:1.4),new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}));
+      head.position.copy(wall.position);wdScene.add(head);
+      const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#ffffff',(i<4?'#00e5ff':'#ff8a2a')),transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));
+      halo.scale.set(4,4,1);head.add(halo);
+      wdAnim.push({cycle:true,head,along,lane,L,t:Math.random()*100});}
+    // 5) horizon glow band so the grid dissolves into a luminous edge, not a hard cut
+    const hz=new THREE.Mesh(new THREE.CylinderGeometry(150,150,10,64,1,true),
+      new THREE.MeshBasicMaterial({color:cyan,transparent:true,opacity:.10,side:THREE.BackSide,toneMapped:false,blending:THREE.AdditiveBlending,fog:false}));
+    hz.position.y=5;wdScene.add(hz);
+  }
   if(cfg.form==='city'){// a real skyline: instanced towers with lit windows, streets between
     const wcv=document.createElement('canvas');wcv.width=64;wcv.height=128;const wx=wcv.getContext('2d');
     wx.fillStyle='#04060b';wx.fillRect(0,0,64,128);
@@ -4262,7 +4319,7 @@ function buildWorld(){
   wdMaxR=Math.max(34,Math.min(96,wdContentR+16));
   // post
   wdComp=new THREE.EffectComposer(renderer);wdComp.addPass(new THREE.RenderPass(wdScene,wdCam));
-  wdBloom=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),cfg.day?0.18:0.75,0.85,cfg.day?0.97:0.62);wdComp.addPass(wdBloom);wdPulse=!!cfg.pulse;
+  wdBloom=new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),cfg.bloom!=null?cfg.bloom:(cfg.day?0.18:0.75),0.85,cfg.bloomThresh!=null?cfg.bloomThresh:(cfg.day?0.97:0.62));wdComp.addPass(wdBloom);wdPulse=!!cfg.pulse;
   wdGrade=new THREE.ShaderPass(new THREE.ShaderMaterial({uniforms:{tDiffuse:{value:null},uTime:{value:0},uRes:{value:new THREE.Vector2(innerWidth,innerHeight)}},
     vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
     fragmentShader:`uniform sampler2D tDiffuse;uniform float uTime;uniform vec2 uRes;varying vec2 vUv;float hash(vec2 p){return fract(sin(dot(p,vec2(41.37,289.13)))*43758.5453);}
@@ -4312,6 +4369,8 @@ function worldFrame(){wdRAF=requestAnimationFrame(worldFrame);const now=performa
       else if(a.part==='bubble'){for(let i=0;i<n2;i++){let y=arr.getY(i)+dt*(1.1+(i%5)*.45);if(y>23)y=0.4;arr.setY(i,y);}arr.needsUpdate=true;}
       else a.m.rotation.y+=dt*(a.part==='plankton'?0.012:0.02);
       continue;}
+    if(a.cycle){a.t+=dt;const p=(Math.sin(a.t*0.5)*0.5)*a.L;// the light-cycle head sweeps its avenue
+      if(a.along)a.head.position.x=p;else a.head.position.z=p;continue;}
     if(a.rot){a.m.rotation.x+=a.rot.x;a.m.rotation.y+=a.rot.y;a.m.rotation.z+=a.rot.z;}
     if(a.aur)a.m.material.map.offset.x+=a.aur*dt;
     if(a.mist){a.m.position.x+=a.mist*dt;if(a.m.position.x>55)a.m.position.x=-55;}
