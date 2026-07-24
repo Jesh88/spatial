@@ -3742,7 +3742,7 @@ addEventListener('resize',()=>{if(spOn&&spComp){spCam.aspect=innerWidth/innerHei
 /* ===================== ◈ WORLD — the website AS a Genie-style explorable world ===================== */
 let wdScene=null,wdCam=null,wdComp=null,wdGrade=null,wdRAF=null,wdOn=false,wdObjs=[],wdAnim=[],wdLast=0,wdHover=-1,
     wdYaw=0,wdPitch=-0.08,wdYawT=0,wdPitchT=-0.08,wdPos=null,wdHovH=2.6,wdKeys={},wdIntro=0,wdAcc='',wdAccChk=0,
-    wdMaxR=88,wdContentR=0,// leash: how far the world's content actually reaches — roaming is clamped to it
+    wdMaxR=88,wdContentR=0,wdFly=false,wdSwim=false,wdFlat=false,// leash + traversal (fly/swim) + flat-render flags
     wdTheme='dunes',wdAmp=1,wdLastInput=0,wdShoot=null,wdShootT=4;
 const wdRay=new THREE.Raycaster(),wdNdc=new THREE.Vector2();
 let wdItems=[];// user-placed builder items in the live scene: {id,g,meshes[]}
@@ -3880,6 +3880,10 @@ function buildWorld(){
   wdTheme=wdForcedTheme||wdPickTheme(curSite||{});const TH=wdTheme;
   const mix=(c,h,k)=>new THREE.Color(c).lerp(new THREE.Color(h),k);
   const cfg=themeCfg(TH,accC);wdAmp=cfg.amp;wdForm=cfg.form||'roll';wdContentR=0;
+  // how cards are PRESENTED, how you MOVE, and how the frame is GRADED — all vary by world
+  cfg.mark=cfg.mark||({city:'billboard',islands:'float',under:'coral',voxel:'post'}[wdForm]||'monument');
+  wdFly=(wdForm==='islands');wdSwim=(wdForm==='under');
+  wdFlat=!!(cfg.day||wdForm==='voxel'||TH==='paper'||TH==='toon'||TH==='stark');
   if(!renderer){renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;}
   renderer.setSize(innerWidth,innerHeight);renderer.toneMappingExposure=cfg.exp;
   wdScene=new THREE.Scene();wdScene.fog=new THREE.FogExp2(cfg.fogC.getHex(),cfg.fog);
@@ -3991,26 +3995,83 @@ function buildWorld(){
         sh.position.set(x+ox,gy2+2.2+Math.random()*2.4,z+oz);sh.rotation.set(Math.random()*3,Math.random()*3,0);grp.add(sh);
         wdAnim.push({m:sh,rot:new THREE.Vector3(.002*(Math.random()<.5?-1:1),.003,.001),bob:.3,ph:Math.random()*6.28,baseY:sh.position.y});}}
     grp.traverse(o=>{if(o.isMesh)o.userData.idx=idx;});grp.children.forEach(m=>wdObjs.push(m));wdScene.add(grp);return grp;};
+    // a readable card FACE — a real sign panel (title/tag/datum + image), not glowing floaty text
+    const wdFace=(card,w,h,flat)=>{
+      const W=512,H=Math.round(512*h/w),cv=document.createElement('canvas');cv.width=W;cv.height=H;const c=cv.getContext('2d');
+      const rr=(x,y,ww,hh,r)=>{c.beginPath();c.moveTo(x+r,y);c.arcTo(x+ww,y,x+ww,y+hh,r);c.arcTo(x+ww,y+hh,x,y+hh,r);c.arcTo(x,y+hh,x,y,r);c.arcTo(x,y,x+ww,y,r);c.closePath();};
+      const light=flat==='light';
+      c.fillStyle=light?'#f6f4ee':'#0c1018';rr(0,0,W,H,26);c.fill();
+      c.lineWidth=8;c.strokeStyle=accHex;c.stroke();
+      let y=34;
+      // tag chip
+      if(card.tag){c.font='700 22px Archivo,sans-serif';const tw=c.measureText(card.tag).width;
+        c.fillStyle=accHex;rr(34,y,tw+34,38,19);c.fill();c.fillStyle=light?'#fff':'#06080d';c.fillText(card.tag,51,y+27);y+=58;}
+      // title (wrapped, bold)
+      c.fillStyle=light?'#14110c':'#f4f8ff';c.font='800 44px Archivo,"Helvetica Neue",sans-serif';
+      const words=(card.title||'').split(' ');let ln='';const lines=[];
+      for(const wd of words){const t=ln?ln+' '+wd:wd;if(c.measureText(t).width>W-68&&ln){lines.push(ln);ln=wd;}else ln=t;}
+      if(ln)lines.push(ln);lines.slice(0,3).forEach(l=>{c.fillText(l,34,y+40);y+=54;});
+      // datum
+      if(card.datum&&card.datum.value){c.fillStyle=accHex;c.font='800 40px Archivo,sans-serif';c.fillText(String(card.datum.value),34,y+40);
+        if(card.datum.label){c.fillStyle=light?'#6a6458':'#8a94a8';c.font='600 20px Archivo,sans-serif';c.fillText(String(card.datum.label).toUpperCase(),36,y+70);}y+=64;}
+      const tex=new THREE.CanvasTexture(cv);tex.anisotropy=8;
+      const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex,transparent:true,toneMapped:false,side:THREE.DoubleSide}));
+      return mesh;
+    };
   const addLandmark=(card,i,x,z,big)=>{
     wdContentR=Math.max(wdContentR,Math.hypot(x,z));
-    const gy=gY(x,z);mkBase(x,z,big,i);
-    if(cfg.plinth){// gallery: every card gets a museum plinth + spotlight cone
-      const pl=new THREE.Mesh(new THREE.CylinderGeometry(big?3.4:2.2,big?3.8:2.5,.5,24),
-        new THREE.MeshStandardMaterial({color:0x14141e,metalness:.6,roughness:.3,emissive:accC.getHex(),emissiveIntensity:.05}));
-      pl.position.set(x,gy+.25,z);wdScene.add(pl);
-      const spot=new THREE.Mesh(new THREE.CylinderGeometry(0.1,big?3.2:2.1,big?13:9,20,1,true),
-        new THREE.MeshBasicMaterial({color:accC,transparent:true,opacity:.07,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
-      spot.position.set(x,gy+(big?6.5:4.5),z);wdScene.add(spot);}
-    if(card.img){const hw=big?13:8.4,hh=hw*0.62;
-      const holo=new THREE.Mesh(new THREE.PlaneGeometry(hw,hh),new THREE.MeshBasicMaterial({color:0x0e131c,transparent:true,opacity:.96,toneMapped:false,side:THREE.DoubleSide}));
-      holo.position.set(x,gy+(big?9.5:6.2),z);holo.userData.idx=i;wdScene.add(holo);wdObjs.push(holo);
-      wdAnim.push({m:holo,bob:.35,ph:Math.random()*6.28,baseY:holo.position.y,bill:true});
-      loadImgChain(card.img).then(im=>{if(!im)return;const tx=new THREE.Texture(im);tx.encoding=THREE.sRGBEncoding;tx.needsUpdate=true;holo.material.map=tx;holo.material.color.set(0xffffff);holo.material.needsUpdate=true;});
-      const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.5,(big?9.5:6.2),8,1,true),new THREE.MeshBasicMaterial({color:accC,transparent:true,opacity:.15,blending:THREE.AdditiveBlending,depthWrite:false}));
-      beam.position.set(x,gy+(big?4.75:3.1),z);wdScene.add(beam);}
-    const lab=wdLabel(card.title||'',card.datum&&card.datum.value,accHex,big,cfg.ink);
-    lab.position.set(x,gy+(big?16.6:(card.img?11.2:5)),z);lab.userData.idx=i;wdScene.add(lab);wdObjs.push(lab);
-    wdAnim.push({m:lab,bob:.22,ph:Math.random()*6.28,baseY:lab.position.y,bill:true});
+    const gy=gY(x,z),ang=Math.atan2(-x,-z);// face the plaza centre
+    const face=(w,h,flat)=>{const m=wdFace(card,w,h,flat);m.userData.idx=i;wdObjs.push(m);return m;};
+    if(cfg.mark==='billboard'){// city: a tall lit SIGN on a pole, like a storefront marquee
+      const H=big?15:10.5,pole=new THREE.Mesh(new THREE.CylinderGeometry(.35,.5,H,8),new THREE.MeshStandardMaterial({color:0x0a0e16,metalness:.7,roughness:.4}));
+      pole.position.set(x,gy+H/2,z);wdScene.add(pole);
+      const fw=big?11:8,fh=fw*0.7,fm=face(fw,fh,cfg.ink?'light':0);
+      fm.position.set(x,gy+H+fh*0.4,z);fm.rotation.y=ang;wdScene.add(fm);
+      const back=new THREE.Mesh(new THREE.BoxGeometry(fw+.6,fh+.6,.4),new THREE.MeshStandardMaterial({color:0x05070c,metalness:.6,roughness:.5,emissive:accC.getHex(),emissiveIntensity:.25}));
+      back.position.set(x,gy+H+fh*0.4,z);back.rotation.y=ang;back.position.x-=Math.sin(ang)*0.3;back.position.z-=Math.cos(ang)*0.3;wdScene.add(back);
+      const halo=new THREE.PointLight(accC.getHex(),.6,20);halo.position.set(x,gy+H+fh*0.4,z);wdScene.add(halo);
+    }else if(cfg.mark==='float'){// sky-islands: a slab hovering above a glowing pad, no ground base
+      const fw=big?9:6.6,fh=fw*0.72,fm=face(fw,fh);
+      fm.position.set(x,gy+(big?7:5.2),z);fm.rotation.y=ang;wdScene.add(fm);
+      wdAnim.push({m:fm,bob:.4,ph:Math.random()*6.28,baseY:fm.position.y,bill:true});
+      const pad=new THREE.Mesh(new THREE.CylinderGeometry(fw*0.34,fw*0.5,.3,6),new THREE.MeshStandardMaterial({color:0x11131f,metalness:.6,roughness:.3,emissive:accC.getHex(),emissiveIntensity:.3}));
+      pad.position.set(x,gy+.4,z);wdScene.add(pad);
+      const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.1,fw*0.34,(big?6.4:4.6),10,1,true),new THREE.MeshBasicMaterial({color:accC,transparent:true,opacity:.12,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+      beam.position.set(x,gy+(big?3.6:2.7),z);wdScene.add(beam);
+    }else if(cfg.mark==='coral'){// underwater: slab rising from a coral bloom
+      for(let k=0;k<5;k++){const cc=new THREE.Mesh(new THREE.ConeGeometry(.3+Math.random()*.5,2+Math.random()*2.5,6,1,true),
+        new THREE.MeshStandardMaterial({color:mix(accC,0xff7a5a,.4+Math.random()*.4).getHex(),roughness:.7,side:THREE.DoubleSide,emissive:accC.getHex(),emissiveIntensity:.12}));
+        const ox=(Math.random()-.5)*3,oz=(Math.random()-.5)*3;cc.position.set(x+ox,gy+1.4,z+oz);cc.rotation.set((Math.random()-.5)*.5,0,(Math.random()-.5)*.5);wdScene.add(cc);}
+      const fw=big?8.4:6,fh=fw*0.72,fm=face(fw,fh);
+      fm.position.set(x,gy+(big?6.5:4.8),z);fm.rotation.y=ang;wdScene.add(fm);
+      wdAnim.push({m:fm,bob:.3,ph:Math.random()*6.28,baseY:fm.position.y,bill:true});
+    }else if(cfg.mark==='post'){// voxel: a blocky signpost — cube stack + panel
+      const ph2=big?7:5;
+      const post=new THREE.Mesh(new THREE.BoxGeometry(.9,ph2,.9),new THREE.MeshStandardMaterial({color:0x6a4a2c,roughness:.95,flatShading:true}));
+      post.position.set(x,gy+ph2/2,z);wdScene.add(post);
+      const fw=big?8:6,fh=fw*0.66,fm=face(fw,fh);
+      fm.position.set(x,gy+ph2+fh*0.4,z);fm.rotation.y=ang;wdScene.add(fm);
+      const board=new THREE.Mesh(new THREE.BoxGeometry(fw+.5,fh+.5,.4),new THREE.MeshStandardMaterial({color:0x8a6a3c,roughness:.95,flatShading:true}));
+      board.position.copy(fm.position);board.rotation.y=ang;board.position.x-=Math.sin(ang)*0.25;board.position.z-=Math.cos(ang)*0.25;wdScene.add(board);
+    }else{// default MONUMENT — the original cone cluster, holo image and glowing headline
+      mkBase(x,z,big,i);
+      if(cfg.plinth){const pl=new THREE.Mesh(new THREE.CylinderGeometry(big?3.4:2.2,big?3.8:2.5,.5,24),
+          new THREE.MeshStandardMaterial({color:0x14141e,metalness:.6,roughness:.3,emissive:accC.getHex(),emissiveIntensity:.05}));
+        pl.position.set(x,gy+.25,z);wdScene.add(pl);
+        const spot=new THREE.Mesh(new THREE.CylinderGeometry(0.1,big?3.2:2.1,big?13:9,20,1,true),
+          new THREE.MeshBasicMaterial({color:accC,transparent:true,opacity:.07,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+        spot.position.set(x,gy+(big?6.5:4.5),z);wdScene.add(spot);}
+      if(card.img){const hw=big?13:8.4,hh=hw*0.62;
+        const holo=new THREE.Mesh(new THREE.PlaneGeometry(hw,hh),new THREE.MeshBasicMaterial({color:0x0e131c,transparent:true,opacity:.96,toneMapped:false,side:THREE.DoubleSide}));
+        holo.position.set(x,gy+(big?9.5:6.2),z);holo.userData.idx=i;wdScene.add(holo);wdObjs.push(holo);
+        wdAnim.push({m:holo,bob:.35,ph:Math.random()*6.28,baseY:holo.position.y,bill:true});
+        loadImgChain(card.img).then(im=>{if(!im)return;const tx=new THREE.Texture(im);tx.encoding=THREE.sRGBEncoding;tx.needsUpdate=true;holo.material.map=tx;holo.material.color.set(0xffffff);holo.material.needsUpdate=true;});
+        const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.5,(big?9.5:6.2),8,1,true),new THREE.MeshBasicMaterial({color:accC,transparent:true,opacity:.15,blending:THREE.AdditiveBlending,depthWrite:false}));
+        beam.position.set(x,gy+(big?4.75:3.1),z);wdScene.add(beam);}
+      const lab=wdLabel(card.title||'',card.datum&&card.datum.value,accHex,big,cfg.ink);
+      lab.position.set(x,gy+(big?16.6:(card.img?11.2:5)),z);lab.userData.idx=i;wdScene.add(lab);wdObjs.push(lab);
+      wdAnim.push({m:lab,bob:.22,ph:Math.random()*6.28,baseY:lab.position.y,bill:true});
+    }
   };
   // card placement — builder worlds get SITE-SECTION districts (home center · about NW · product NE · shop far); crawls keep the spiral
   const useZones=typeof bldWorld!=='undefined'&&bldWorld&&bldWorld.cards===cards;
@@ -4208,8 +4269,12 @@ function buildWorld(){
       void main(){vec2 uv=vUv,c=uv-0.5;float r2=dot(c,c);vec2 d=c/(sqrt(r2)+1e-4);float ca=0.0012*(0.4+r2*2.0);
       float R=texture2D(tDiffuse,uv-d*ca).r,G=texture2D(tDiffuse,uv).g,B=texture2D(tDiffuse,uv+d*ca).b;vec3 col=vec3(R,G,B);
       col=mix(col,col*col*(3.0-2.0*col),0.14);float g=hash(uv*uRes*0.5+fract(uTime)*91.0);col+=(g-0.5)*0.026;col*=smoothstep(1.4,0.34,r2*2.1);gl_FragColor=vec4(col,1.0);}`}),'tDiffuse');
-  wdComp.addPass(wdGrade);
+  // flat worlds (cartoon/paper/voxel/lab/day) skip the cinematic CA+grain+vignette grade — clean, poster-like finish
+  if(wdFlat){wdGrade=null;}else wdComp.addPass(wdGrade);
   const sub=document.getElementById('glxSub');if(sub)sub.textContent=' · '+cards.length+' highlights · '+WD_THEME_LABEL[TH];
+  {const hint=document.getElementById('glxhint');if(hint)hint.textContent=wdFly?'drag to look · WASD to fly · space / C for altitude · click a sign for its data'
+    :wdSwim?'drag to look · WASD to swim · space / C to rise & dive · click a card for its data'
+    :'drag to look · WASD to roam · scroll to glide · click anything for its data';}
   // camera: high establishing shot easing down to the ground
   wdPos=new THREE.Vector3(0,wdHT(0,0)+30,54);wdYaw=wdYawT=0;wdPitch=wdPitchT=-0.34;wdHovH=2.6;wdIntro=0;wdLastInput=performance.now();
 }
@@ -4222,12 +4287,19 @@ function worldFrame(){wdRAF=requestAnimationFrame(worldFrame);const now=performa
   // idle: the world keeps living — slow drift until the user touches anything
   if(now-wdLastInput>9000&&wdIntro>=1){wdYawT+=dt*0.03;wdPos.x-=Math.sin(wdYaw)*dt*1.0;wdPos.z-=Math.cos(wdYaw)*dt*1.0;}
   const sp=(wdKeys['shift']?14:7)*dt,fx=Math.sin(wdYaw),fz=Math.cos(wdYaw);
-  if(wdKeys['w']||wdKeys['arrowup']){wdPos.x-=fx*sp;wdPos.z-=fz*sp;}
-  if(wdKeys['s']||wdKeys['arrowdown']){wdPos.x+=fx*sp;wdPos.z+=fz*sp;}
+  const airborne=(wdFly||wdSwim),vfwd=airborne?Math.sin(-wdPitch):0;// flying/swimming: W follows your gaze up & down
+  if(wdKeys['w']||wdKeys['arrowup']){wdPos.x-=fx*sp;wdPos.z-=fz*sp;if(airborne)wdPos.y+=vfwd*sp;}
+  if(wdKeys['s']||wdKeys['arrowdown']){wdPos.x+=fx*sp;wdPos.z+=fz*sp;if(airborne)wdPos.y-=vfwd*sp;}
   if(wdKeys['a']||wdKeys['arrowleft']){wdPos.x-=fz*sp;wdPos.z+=fx*sp;}
   if(wdKeys['d']||wdKeys['arrowright']){wdPos.x+=fz*sp;wdPos.z-=fx*sp;}
+  if(airborne){// vertical thrust: Space up / C down — free 3D movement
+    if(wdKeys[' ']||wdKeys['e'])wdPos.y+=sp;if(wdKeys['c']||wdKeys['q'])wdPos.y-=sp;
+    if(now-wdLastInput<9000&&(wdKeys[' ']||wdKeys['e']||wdKeys['c']||wdKeys['q']))wdLastInput=now;}
   const rr=Math.hypot(wdPos.x,wdPos.z);if(rr>wdMaxR){wdPos.x*=wdMaxR/rr;wdPos.z*=wdMaxR/rr;}
-  if(wdIntro>=1){const gfl=wdForm==='islands'?-0.6:-1e9;const ty=Math.max(wdHT(wdPos.x,wdPos.z),gfl)+wdHovH;wdPos.y+=(ty-wdPos.y)*Math.min(1,dt*4);}
+  if(wdIntro>=1){
+    if(wdFly){const floor=wdHT(wdPos.x,wdPos.z)+wdHovH;wdPos.y=Math.max(floor-1,Math.min(46,wdPos.y));}// glide freely, don't sink through islands
+    else if(wdSwim){wdPos.y=Math.max(wdHT(wdPos.x,wdPos.z)+1.4,Math.min(23,wdPos.y));}// swim between seabed and surface
+    else{const ty=wdHT(wdPos.x,wdPos.z)+wdHovH;wdPos.y+=(ty-wdPos.y)*Math.min(1,dt*4);}}
   // eye level: after a moment of no input, ease the gaze back to the horizon
   if(wdIntro>=1&&now-wdLastInput>2600)wdPitchT+=(-0.06-wdPitchT)*Math.min(1,dt*1.1);
   wdYaw+=(wdYawT-wdYaw)*Math.min(1,dt*9);wdPitch+=(wdPitchT-wdPitch)*Math.min(1,dt*9);
