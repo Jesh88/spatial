@@ -339,6 +339,82 @@
       </div>
     </div>
   </aside>
+  <!-- ＋ QUICK ADD — the everyone-can-use layer: one button, three choices, things appear in front of you -->
+  <button id="addFab" aria-label="Add to your world"><span>＋</span><em>Add</em></button>
+  <div id="addSheet">
+    <div class="as-head"><b>Add to your world</b><button class="gdx" id="asClose">✕</button></div>
+    <div class="as-tiles" id="asTiles">
+      <button data-a="text"><i>Aa</i>Text<small>type anything</small></button>
+      <button data-a="image"><i>🖼</i>Photo<small>from your device</small></button>
+      <button data-a="3d"><i>◆</i>3D thing<small>pick a shape</small></button>
+      <button data-a="card"><i>▤</i>Card<small>title + story</small></button>
+    </div>
+    <div class="as-link"><input id="asImgUrl" placeholder="…or paste an image link"/><button class="bp-btn" id="asImgGo">Add</button></div>
+    <div class="as-grid" id="addGrid" style="display:none"></div>
+  </div>
+  <input type="file" id="addImgFile" accept="image/*" hidden/>
+  <div id="quickText"><input id="qtInput" maxlength="60" placeholder="Type your text…" autocomplete="off"/><button class="bp-btn" id="qtDone">Done</button></div>
+  <div id="itemBar">
+    <button id="ibEdit" title="Edit">✎</button>
+    <button id="ibSmall" title="Smaller">−</button>
+    <button id="ibBig" title="Bigger">＋</button>
+    <button id="ibRot" title="Rotate">↻</button>
+    <button id="ibHere" title="Bring it here">📍</button>
+    <button id="ibDel" class="ib-del" title="Delete">🗑</button>
+    <button id="ibClose" title="Done">✓</button>
+  </div>
+  <div id="coach"><b>Tap ＋ to add text, photos or 3D things.</b><span>Tap anything you placed to move, resize or delete it.</span></div>
+  <style>
+  #addFab{position:fixed;left:50%;bottom:52px;transform:translateX(-50%);z-index:59;display:none;align-items:center;gap:8px;
+    padding:12px 22px 12px 16px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent) 60%,#fff);cursor:pointer;
+    background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 85%,#fff),color-mix(in srgb,var(--accent) 60%,#000));color:#fff;
+    box-shadow:0 10px 40px -10px var(--accent),0 0 0 6px color-mix(in srgb,var(--accent) 18%,transparent);transition:transform .2s;}
+  #addFab:hover{transform:translateX(-50%) scale(1.05);}
+  #addFab span{font-size:26px;line-height:1;font-weight:700;}
+  #addFab em{font-style:normal;font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;}
+  body.quick-on #addFab{display:flex;}
+  body.edit-on #addFab{left:calc(50% - 150px);}
+  @media(max-width:640px){body.edit-on #addFab{display:none;}}
+  #addSheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,110%);z-index:70;width:min(560px,96vw);
+    background:linear-gradient(165deg,rgba(12,17,28,.97),rgba(8,11,19,.96));border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);
+    border-radius:22px 22px 0 0;padding:14px 16px 22px;box-shadow:0 -10px 60px -20px var(--accent);backdrop-filter:blur(16px);
+    transition:transform .32s cubic-bezier(.2,.8,.2,1);font-family:var(--body);color:#eaf0fb;}
+  #addSheet.open{transform:translate(-50%,0);}
+  .as-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .as-head b{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;}
+  .as-head .gdx{position:static;}
+  .as-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .as-tiles button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 6px 12px;border-radius:16px;cursor:pointer;color:#f2f6ff;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);font-family:var(--body);font-size:14px;font-weight:700;}
+  .as-tiles button:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent);}
+  .as-tiles button i{font-style:normal;font-size:26px;line-height:1.1;color:color-mix(in srgb,var(--accent) 80%,#fff);}
+  .as-tiles button small{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(200,214,238,.55);}
+  .as-link{display:flex;gap:8px;margin-top:12px;}
+  .as-link input{flex:1;font-family:var(--body);font-size:13px;color:#f0f5ff;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:9px 12px;outline:none;}
+  .as-link input:focus{border-color:var(--accent);}
+  .as-link .bp-btn{padding:0 16px;}
+  .as-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px;max-height:44vh;overflow-y:auto;}
+  .as-grid button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 4px 9px;border-radius:14px;cursor:pointer;color:#eaf0fb;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;}
+  .as-grid button b{font-size:22px;line-height:1;color:color-mix(in srgb,var(--accent) 80%,#fff);}
+  .as-grid button:hover{border-color:var(--accent);}
+  .as-grid .bp-cat{grid-column:1/-1;}
+  @media(max-width:640px){.as-tiles{grid-template-columns:repeat(2,1fr);}.as-grid{grid-template-columns:repeat(4,1fr);}}
+  #quickText{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:71;display:none;gap:8px;width:min(440px,92vw);
+    background:rgba(10,14,22,.94);border:1px solid var(--accent);border-radius:16px;padding:10px;box-shadow:0 0 40px -10px var(--accent);backdrop-filter:blur(12px);}
+  #quickText.open{display:flex;}
+  #quickText input{flex:1;font-family:var(--display);font-size:20px;font-weight:700;color:#fff;background:transparent;border:0;outline:none;padding:6px 10px;}
+  #itemBar{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:60;display:none;gap:6px;padding:6px;
+    background:rgba(10,14,22,.92);border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);border-radius:999px;box-shadow:0 8px 30px -10px var(--accent);backdrop-filter:blur(12px);}
+  #itemBar.open{display:flex;}
+  #itemBar button{width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:17px;cursor:pointer;}
+  #itemBar button:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 22%,transparent);}
+  #itemBar .ib-del:hover{border-color:#ff6478;background:rgba(255,80,100,.22);}
+  #coach{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:58;display:none;flex-direction:column;align-items:center;gap:3px;text-align:center;
+    padding:12px 18px;border-radius:14px;background:rgba(10,14,22,.9);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);color:#eaf0fb;font-family:var(--body);pointer-events:none;}
+  #coach.open{display:flex;}
+  #coach b{font-size:14px;}#coach span{font-size:12px;color:rgba(200,214,238,.7);}
+  </style>
   <style>
   #bldpanel{position:fixed;top:64px;right:14px;bottom:14px;z-index:58;width:288px;display:none;flex-direction:column;
     background:linear-gradient(165deg,rgba(11,16,27,.94),rgba(8,11,19,.9));border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);
@@ -2822,7 +2898,7 @@ const IMG_PROXY=u=>_wsrv(cleanSrc(u),1400);
 /* try a chain of proxies/URLs until one decodes with real pixels (CORS-clean for canvas/WebGL) */
 function loadImgChain(raw){return new Promise(res=>{
   const clean=cleanSrc(raw);
-  const cands=[_wsrv(clean,1400),raw,_wsrv(raw,1400),'https://corsproxy.io/?url='+encodeURIComponent(raw)];
+  const cands=/^(data|blob):/i.test(raw)?[raw]:[_wsrv(clean,1400),raw,_wsrv(raw,1400),'https://corsproxy.io/?url='+encodeURIComponent(raw)];
   let i=0;const step=()=>{ if(i>=cands.length)return res(null);
     const im=new Image();im.crossOrigin='anonymous';
     const to=setTimeout(()=>{im.onload=im.onerror=null;i++;step();},8000);
@@ -3727,7 +3803,7 @@ function hideSpatial(skipRestore){
   const hint=document.getElementById('glxhint');if(hint)hint.textContent='drag to orbit · scroll to zoom · click a card for more';
   if(!glxRAF)glxFrame();
 }
-function spOverUI(e){return !!(e.target&&e.target.closest&&e.target.closest('#glxui,#glxdetail,#detail,#search,button,a,input'));}
+function spOverUI(e){return !!(e.target&&e.target.closest&&e.target.closest('#glxui,#glxdetail,#detail,#search,#bldpanel,#addFab,#addSheet,#itemBar,#quickText,#coach,#handguide,button,a,input,textarea,select'));}
 addEventListener('pointermove',e=>{if(!spOn||!spCam)return;spMX=(e.clientX/innerWidth-.5)*2;spMY=-(e.clientY/innerHeight-.5)*2;
   if(spOverUI(e)){spHover=-1;document.getElementById('c').style.cursor='';return;}
   spNdc.x=(e.clientX/innerWidth)*2-1;spNdc.y=-(e.clientY/innerHeight)*2+1;spRay.setFromCamera(spNdc,spCam);
@@ -4405,7 +4481,7 @@ function hideWorld(skipRestore){
 }
 (function(){let down=false,px=0,py=0,moved=0;
   addEventListener('pointerdown',e=>{if(!wdOn||spOverUI(e))return;
-    if(typeof bldOn!=='undefined'&&bldOn&&wdItems.length){// edit mode: grab an item to drag it across the terrain
+    if(typeof bldWorld!=='undefined'&&bldWorld&&wdItems.length){// your world: grab an item to drag it across the terrain
       wdNdc.x=(e.clientX/innerWidth)*2-1;wdNdc.y=-(e.clientY/innerHeight)*2+1;wdRay.setFromCamera(wdNdc,wdCam);
       const all=[];wdItems.forEach(w=>all.push(...w.meshes));
       const hit=wdRay.intersectObjects(all,false)[0];
@@ -4429,7 +4505,7 @@ function hideWorld(skipRestore){
     if(typeof bldDragId!=='undefined'&&bldDragId){bldDragId=null;saveWorld();return;}// drop the dragged item
     const was=down;down=false;
     if(!was||moved>7||spOverUI(e))return;if(document.getElementById('glxdetail').classList.contains('show'))return;
-    if(typeof bldOn!=='undefined'&&bldOn&&wdItems.length){// edit mode: clicking a placed item selects it in the panel
+    if(typeof bldWorld!=='undefined'&&bldWorld&&wdItems.length){// your world: tapping a placed item selects it
       wdNdc.x=(e.clientX/innerWidth)*2-1;wdNdc.y=-(e.clientY/innerHeight)*2+1;wdRay.setFromCamera(wdNdc,wdCam);
       const all=[];wdItems.forEach(w=>all.push(...w.meshes));
       const hit=wdRay.intersectObjects(all,false)[0];
@@ -5211,22 +5287,25 @@ document.getElementById('bpItDel').onclick=()=>{
 };
 bldRenderItemPal();
 /* ---- publish / share / export / import ---- */
-function serializeWorld(w){
+function serializeWorld(w,forLink){
   const c=JSON.parse(JSON.stringify(w));
   delete c.meta.modified;delete c.meta.created;
+  if(forLink)(c.items||[]).forEach(it=>{if(it.params&&/^data:/.test(it.params.img||''))it.params.img=null;});// uploaded photos can't ride in a URL
   (c.cards||[]).forEach(k=>{for(const f in k)if(k[f]==null||k[f]===false||(f==='href'&&k[f]==='#'))delete k[f];});
   return JSON.stringify(c);
 }
 function publishURL(){
   if(typeof LZString==='undefined'||!bldWorld)return null;
-  return location.origin+location.pathname+'#w='+LZString.compressToEncodedURIComponent(serializeWorld(bldWorld));
+  return location.origin+location.pathname+'#w='+LZString.compressToEncodedURIComponent(serializeWorld(bldWorld,true));
 }
 document.getElementById('bpPublish').onclick=()=>{
   const out=document.getElementById('bpPubOut'),u=publishURL();
   if(!u){out.textContent='Share library not loaded — use Export instead.';return;}
   if(u.length>6000){out.textContent='⚠ World too big for a link ('+u.length+' chars) — use Export.';return;}
+  const nUp=(bldWorld.items||[]).filter(it=>it.params&&/^data:/.test(it.params.img||'')).length;
+  const note=nUp?'<br>⚠ '+nUp+' uploaded photo'+(nUp>1?'s':'')+' stay in your saved world but can\'t travel in a link — paste image links, or use Export.':'';
   if(navigator.clipboard)navigator.clipboard.writeText(u).catch(()=>{});
-  out.innerHTML='Link copied · '+u.length+' chars<br><a style="color:var(--accent);word-break:break-all" href="'+u+'">'+u.slice(0,72)+'…</a>';
+  out.innerHTML='Link copied · '+u.length+' chars<br><a style="color:var(--accent);word-break:break-all" href="'+u+'">'+u.slice(0,72)+'…</a>'+note;
 };
 document.getElementById('bpExport').onclick=()=>{
   if(!bldWorld)return;
@@ -5242,6 +5321,83 @@ document.getElementById('bpImport').addEventListener('change',e=>{
     w.meta.id=newWorldId();bldWorld=null;applyWorld(w);bldOpen();
   }).catch(()=>{document.getElementById('bpPubOut').textContent='⚠ Not a valid world file.';});
 });
+/* ===================== ＋ QUICK ADD — everyone-can-use layer ===================== */
+const qs=id=>document.getElementById(id);
+function quickSync(){// FAB shows whenever you're standing in a world you own
+  const on=!!bldWorld&&(wdOn||spOn);document.body.classList.toggle('quick-on',on);
+  if(on&&!localStorage.getItem('spatial.coach1')){qs('coach').classList.add('open');localStorage.setItem('spatial.coach1','1');setTimeout(()=>qs('coach').classList.remove('open'),6000);}
+}
+setInterval(quickSync,400);
+function sheetOpen(o){qs('addSheet').classList.toggle('open',!!o);if(!o)qs('addGrid').style.display='none';}
+qs('addFab').onclick=()=>{itemBarOpen(false);sheetOpen(!qs('addSheet').classList.contains('open'));};
+qs('asClose').onclick=()=>sheetOpen(false);
+/* place an item in front of you, with params, and hand you the toolbar */
+function quickAdd(type,params){
+  if(!bldWorld)return null;
+  const it={id:'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),type,pos:bldItemFwd(),scale:1,rot:0,params:params||{}};
+  bldWorld.items.push(it);bldItemId=it.id;
+  saveWorld();if(wdOn){hideWorld(true);showWorld();}else if(spOn){hideSpatial(true);showSpatial();}
+  bldRenderItemSel();bldLoadItem();sheetOpen(false);itemBarOpen(true);
+  return it;
+}
+qs('asTiles').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  const a=b.dataset.a;
+  if(a==='text'){quickAdd('label',{text:'Your text'});quickTextOpen();}
+  else if(a==='image'){qs('addImgFile').click();}
+  else if(a==='3d'){const g=qs('addGrid');if(g.style.display==='none'){quickRenderGrid();g.style.display='';}else g.style.display='none';}
+  else if(a==='card'){sheetOpen(false);bldOpen();bldShowTab('cards');qs('bpCardAdd').click();setTimeout(()=>qs('bpTitle').focus(),60);}
+});
+function quickRenderGrid(){
+  const host=qs('addGrid'),cats={};
+  for(const t in ITEM_REGISTRY){if(t==='label'||t==='billboard')continue;const d=ITEM_REGISTRY[t];(cats[d.cat]=cats[d.cat]||[]).push([t,d]);}
+  host.innerHTML=Object.keys(cats).map(c=>`<div class="bp-cat">${c}</div>`+cats[c].map(([t,d])=>`<button data-t="${t}"><b>${d.icon}</b>${d.name}</button>`).join('')).join('');
+  host.querySelectorAll('button[data-t]').forEach(b=>b.onclick=()=>quickAdd(b.dataset.t));
+}
+/* photos: read from device, downscale so it stays snappy, store as a data URL */
+function quickImageFile(file,replaceId){
+  if(!file||!/^image\//.test(file.type))return;
+  const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{
+    const max=1024,k=Math.min(1,max/Math.max(im.width,im.height)),cv=document.createElement('canvas');
+    cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+    const url=cv.toDataURL('image/jpeg',.82);
+    if(replaceId){const it=bldWorld.items.find(i=>i.id===replaceId);if(it){(it.params=it.params||{}).img=url;saveWorld();requestRebuild();}}
+    else quickAdd('billboard',{img:url});
+  };im.src=rd.result;};rd.readAsDataURL(file);
+}
+let qtReplaceId=null;
+qs('addImgFile').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];e.target.value='';quickImageFile(f,qtReplaceId);qtReplaceId=null;});
+qs('asImgGo').onclick=()=>{const u=qs('asImgUrl').value.trim();if(!u)return;qs('asImgUrl').value='';quickAdd('billboard',{img:u});};
+qs('asImgUrl').addEventListener('keydown',e=>{if(e.key==='Enter')qs('asImgGo').click();});
+/* inline text editing — type, it updates in the world live */
+function quickTextOpen(){const it=bldItem();if(!it||it.type!=='label')return;
+  qs('quickText').classList.add('open');const inp=qs('qtInput');inp.value=(it.params&&it.params.text)||'';inp.focus();inp.select();}
+function quickTextClose(){qs('quickText').classList.remove('open');}
+function liveLabel(it){// repaint the label texture in place — no scene rebuild
+  const acc=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#5b8cff';
+  const ink=(themeCfg(wdTheme,new THREE.Color(acc)).ink)||null;
+  const fresh=wdLabel(it.params.text||' ',it.params.datum||null,acc,false,ink);
+  [bldLiveItem(),spItems.find(w=>w.id===it.id)].forEach(lv=>{if(!lv)return;const m=lv.g.children.find(c=>c.isMesh&&c.material&&c.material.map);
+    if(m){if(m.material.map)m.material.map.dispose();m.material.map=fresh.material.map;m.material.needsUpdate=true;}});
+}
+qs('qtInput').addEventListener('input',e=>{const it=bldItem();if(!it)return;(it.params=it.params||{}).text=e.target.value;liveLabel(it);saveWorld();});
+qs('qtInput').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key==='Escape')quickTextClose();});
+qs('qtDone').onclick=quickTextClose;
+/* floating toolbar for whatever you tapped */
+function itemBarOpen(o){qs('itemBar').classList.toggle('open',!!o&&!!bldItem());}
+bldSelectItem=function(id){bldItemId=id;bldRenderItemSel();bldLoadItem();if(bldOn)bldShowTab('items');else itemBarOpen(true);};
+function liveScale(it){const lv=bldLiveItem();if(lv)lv.g.scale.setScalar(it.scale);const ls=spItems.find(w=>w.id===it.id);if(ls)ls.g.scale.setScalar(it.scale*0.55);}
+function liveRot(it){const lv=bldLiveItem();if(lv)lv.g.rotation.y=it.rot;const ls=spItems.find(w=>w.id===it.id);if(ls)ls.g.rotation.y=it.rot;}
+qs('ibSmall').onclick=()=>{const it=bldItem();if(!it)return;it.scale=Math.max(.4,+((it.scale||1)-.2).toFixed(2));liveScale(it);saveWorld();};
+qs('ibBig').onclick=()=>{const it=bldItem();if(!it)return;it.scale=Math.min(3.4,+((it.scale||1)+.2).toFixed(2));liveScale(it);saveWorld();};
+qs('ibRot').onclick=()=>{const it=bldItem();if(!it)return;it.rot=+(((it.rot||0)+Math.PI/4)%(Math.PI*2)).toFixed(3);liveRot(it);saveWorld();};
+qs('ibHere').onclick=()=>qs('bpItMove').click();
+qs('ibDel').onclick=()=>{qs('bpItDel').click();itemBarOpen(false);};
+qs('ibClose').onclick=()=>{itemBarOpen(false);quickTextClose();};
+qs('ibEdit').onclick=()=>{const it=bldItem();if(!it)return;
+  if(it.type==='label')quickTextOpen();
+  else if(it.type==='billboard'){qtReplaceId=it.id;qs('addImgFile').click();}
+  else{bldOpen();bldShowTab('items');}};
+addEventListener('keydown',e=>{if(e.key==='Escape'){sheetOpen(false);itemBarOpen(false);quickTextClose();}});
 /* ---- boot: open a shared world from the URL hash ---- */
 function bootSharedWorld(){
   if(!location.hash.startsWith('#w=')||typeof LZString==='undefined')return false;
