@@ -2082,6 +2082,9 @@ THREE.UnrealBloomPass.BlurDirectionY = new THREE.Vector2( 0.0, 1.0 );
 
 </script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script>/* ---- r128 CSS3DRenderer (renders real DOM elements in 3D — crisp text + real images) ---- */
 (function(){
  const _position=new THREE.Vector3(),_quaternion=new THREE.Quaternion(),_scale=new THREE.Vector3();
@@ -4445,6 +4448,7 @@ function worldFrame(){wdRAF=requestAnimationFrame(worldFrame);const now=performa
       else if(a.part==='bubble'){for(let i=0;i<n2;i++){let y=arr.getY(i)+dt*(1.1+(i%5)*.45);if(y>23)y=0.4;arr.setY(i,y);}arr.needsUpdate=true;}
       else a.m.rotation.y+=dt*(a.part==='plankton'?0.012:0.02);
       continue;}
+    if(a.mixer){a.mixer.update(dt);continue;}// real objects: play their own animation (birds flap, horse gallops…)
     if(a.cycle){a.t+=dt;const p=(Math.sin(a.t*0.5)*0.5)*a.L;// the light-cycle head sweeps its avenue
       if(a.along)a.head.position.x=p;else a.head.position.z=p;continue;}
     if(a.rot){a.m.rotation.x+=a.rot.x;a.m.rotation.y+=a.rot.y;a.m.rotation.z+=a.rot.z;}
@@ -4855,7 +4859,7 @@ function bldRenderThemes(){
   const host=document.getElementById('bpThemes');
   host.innerHTML=THEME_GROUPS.map(g=>
     `<div class="bp-cat">${g}</div>`+
-    Object.keys(WD_THEME_LABEL).filter(k=>THEME_GROUP[k]===g)
+    THEME_FEATURED.filter(k=>THEME_GROUP[k]===g)
       .map(k=>`<button data-k="${k}"${k===bldWorld.theme.key?' class="on"':''}>${WD_THEME_LABEL[k]}<em>${(TEMPLATES[k]||{}).cat||k}</em></button>`).join('')
   ).join('');
   host.querySelectorAll('button').forEach(b=>b.onclick=()=>{
@@ -5100,13 +5104,10 @@ const TEMPLATE_CARDS={
     {tag:'SHOP',title:'Join the whitelist',summary:'Apply with your best build. Diamonds not required.',datum:{value:'64',label:'stack limit'},sec:'shop'}]
 };
 /* theme groups — the gallery and theme picker segregate by type */
-const THEME_GROUP={
-  dunes:'Business',peaks:'Business','void':'Business',summit:'Business',archive:'Business',
-  neon:'Shop',dawn:'Shop',prestige:'Shop',impulse:'Shop',warehouse:'Shop',motion:'Shop',ride:'Shop',bazaar:'Shop',
-  gallery:'Creative',stage:'Creative',paper:'Creative',
-  vale:'Lifestyle',terrace:'Lifestyle',isles:'Lifestyle',meadow:'Lifestyle',shore:'Lifestyle',candy:'Lifestyle',autumn:'Lifestyle',blossom:'Lifestyle',
-  grid:'Iconic',gotham:'Iconic',stark:'Iconic',toon:'Iconic',voxel:'Iconic'};
-const THEME_GROUPS=['Business','Shop','Creative','Lifestyle','Iconic'];
+/* curated: only the genuinely distinct worlds are offered (old keys still load for saved worlds) */
+const THEME_FEATURED=['grid','voxel','gotham','neon','prestige','void','isles','meadow','shore'];
+const THEME_GROUP={grid:'Iconic',voxel:'Iconic',gotham:'Iconic',neon:'Night',prestige:'Night','void':'Night',isles:'Night',meadow:'Daylight',shore:'Daylight'};
+const THEME_GROUPS=['Iconic','Night','Daylight'];
 let tplFilter='All';
 function renderTemplates(){
   const host=document.getElementById('tplGrid');if(!host)return;
@@ -5115,7 +5116,7 @@ function renderTemplates(){
     chips.querySelectorAll('.tchip').forEach(c=>c.onclick=()=>{tplFilter=c.dataset.g;renderTemplates();});}
   const groups=tplFilter==='All'?THEME_GROUPS:[tplFilter];
   host.innerHTML=groups.map(g=>{
-    const keys=Object.keys(WD_THEME_LABEL).filter(k=>THEME_GROUP[k]===g);
+    const keys=THEME_FEATURED.filter(k=>THEME_GROUP[k]===g);
     if(!keys.length)return '';
     return `<div class="tpl-h">${g}</div>`+keys.map(k=>{
       const t=TEMPLATES[k]||{cat:'World',acc:'#5b8cff',tag:''};
@@ -5132,6 +5133,48 @@ function renderTemplates(){
   });
 }
 renderTemplates();
+/* ---- REAL OBJECTS — verified CC0/sample GLB models on a CDN, loaded once, cloned per placement ---- */
+const _T3='https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/models/gltf/',_KH='https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/',_KA='https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/';
+const MODEL_LIB={
+  duck:{name:'Duck',icon:'🦆',url:_KA+'Duck/glTF-Binary/Duck.glb',h:2.2},
+  fox:{name:'Fox',icon:'🦊',url:_KA+'Fox/glTF-Binary/Fox.glb',h:2.4,anim:1},
+  flamingo:{name:'Flamingo',icon:'🦩',url:_T3+'Flamingo.glb',h:3.2,anim:0,fly:5},
+  parrot:{name:'Parrot',icon:'🦜',url:_T3+'Parrot.glb',h:2.4,anim:0,fly:4.5},
+  stork:{name:'Stork',icon:'🕊',url:_T3+'Stork.glb',h:3,anim:0,fly:6},
+  horse:{name:'Horse',icon:'🐎',url:_T3+'Horse.glb',h:3.4,anim:0},
+  robot:{name:'Robot',icon:'🤖',url:_T3+'RobotExpressive/RobotExpressive.glb',h:3.6,anim:'Idle'},
+  truck:{name:'Milk truck',icon:'🚚',url:_KH+'CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb',h:3.2},
+  buggy:{name:'Buggy',icon:'🚙',url:_KH+'Buggy/glTF-Binary/Buggy.glb',h:3},
+  engine:{name:'Engine',icon:'⚙️',url:_KH+'2CylinderEngine/glTF-Binary/2CylinderEngine.glb',h:2.6},
+  soldier:{name:'Soldier',icon:'🧍',url:_T3+'Soldier.glb',h:3.4,anim:0},
+  ferrari:{name:'Sports car',icon:'🏎',url:_T3+'ferrari.glb',h:1.6}
+};
+const _gltfCache={};let _gltfLoader=null;
+function gltfLoader(){if(_gltfLoader||typeof THREE.GLTFLoader==='undefined')return _gltfLoader;
+  _gltfLoader=new THREE.GLTFLoader();
+  if(THREE.DRACOLoader){const d=new THREE.DRACOLoader();d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');_gltfLoader.setDRACOLoader(d);}
+  return _gltfLoader;}
+function loadModel(url){if(_gltfCache[url])return _gltfCache[url];const L=gltfLoader();if(!L)return Promise.reject('no loader');
+  return _gltfCache[url]=new Promise((res,rej)=>L.load(url,g=>res(g),undefined,e=>{delete _gltfCache[url];rej(e);}));}
+/* drop a real object into a group: normalise size, sit it on the ground, start its animation */
+function placeModel(g,key,cx){
+  const def=MODEL_LIB[key];if(!def)return;
+  const ph=new THREE.Sprite(new THREE.SpriteMaterial({map:cx.glowTex('#ffffff',cx.accHex),transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false}));
+  ph.scale.set(2.5,2.5,1);ph.position.y=1.4;g.add(ph);// placeholder glow while it downloads
+  loadModel(def.url).then(gltf=>{
+    const src=gltf.scene,obj=(THREE.SkeletonUtils&&THREE.SkeletonUtils.clone)?THREE.SkeletonUtils.clone(src):src.clone();
+    const box=new THREE.Box3().setFromObject(obj),size=new THREE.Vector3();box.getSize(size);
+    const k=def.h/Math.max(size.y,1e-4);obj.scale.setScalar(k);
+    const b2=new THREE.Box3().setFromObject(obj),c=new THREE.Vector3();b2.getCenter(c);
+    obj.position.set(-c.x,-b2.min.y+(def.fly||0),-c.z);
+    obj.traverse(o=>{if(o.isMesh){o.castShadow=false;o.frustumCulled=false;if(o.material){o.material.side=THREE.FrontSide;}}});
+    g.remove(ph);g.add(obj);
+    if(gltf.animations&&gltf.animations.length&&def.anim!=null){
+      const mixer=new THREE.AnimationMixer(obj);
+      const clip=typeof def.anim==='string'?(THREE.AnimationClip.findByName(gltf.animations,def.anim)||gltf.animations[0]):gltf.animations[def.anim]||gltf.animations[0];
+      mixer.clipAction(clip).play();cx.anim({mixer});}
+  }).catch(()=>{ph.material.color.set(0xff5560);});
+}
 /* ---- item registry — placeable 3D elements (built at local origin; builder positions the group) ---- */
 const ITEM_REGISTRY={
   crystal:{cat:'Landmark',icon:'◆',name:'Crystals',make(p,cx){const g=new THREE.Group();
@@ -5203,6 +5246,7 @@ const ITEM_REGISTRY={
     holo.position.y=3.6;g.add(holo);
     if(p.img)loadImgChain(p.img).then(im=>{if(!im)return;const tx=new THREE.Texture(im);tx.encoding=THREE.sRGBEncoding;tx.needsUpdate=true;holo.material.map=tx;holo.material.color.set(0xffffff);holo.material.needsUpdate=true;});
     cx.anim({m:holo,bob:.3,ph:Math.random()*6.28,baseY:holo.position.y,bill:true});return g;}},
+  model:{cat:'Objects',icon:'🦆',name:'Object',make(p,cx){const g=new THREE.Group();placeModel(g,p.model||'duck',cx);return g;}},
   arch:{cat:'Structure',icon:'⌒',name:'Arch',make(p,cx){const g=new THREE.Group();
     const m=new THREE.Mesh(new THREE.TorusGeometry(2.6,.3,10,40,Math.PI),
       new THREE.MeshStandardMaterial({color:0x161a28,metalness:.7,roughness:.3,emissive:cx.accC.getHex(),emissiveIntensity:.18}));
@@ -5239,8 +5283,9 @@ function bldItemFwd(){// spot in front of the camera, on the terrain
 }
 function bldRenderItemPal(){
   const host=document.getElementById('bpItemPal');const cats={};
-  for(const t in ITEM_REGISTRY){const d=ITEM_REGISTRY[t];(cats[d.cat]=cats[d.cat]||[]).push([t,d]);}
-  host.innerHTML=Object.keys(cats).map(c=>`<div class="bp-cat">${c}</div>`+cats[c].map(([t,d])=>`<button data-t="${t}"><b>${d.icon}</b>${d.name}</button>`).join('')).join('');
+  for(const t in ITEM_REGISTRY){if(t==='model')continue;const d=ITEM_REGISTRY[t];(cats[d.cat]=cats[d.cat]||[]).push([t,d]);}
+  host.innerHTML=objectTiles()+Object.keys(cats).map(c=>`<div class="bp-cat">${c}</div>`+cats[c].map(([t,d])=>`<button data-t="${t}"><b>${d.icon}</b>${d.name}</button>`).join('')).join('');
+  host.querySelectorAll('button[data-m]').forEach(b=>b.onclick=()=>{bldAddItem('model');const it=bldItem();if(it){it.params={model:b.dataset.m};saveWorld();requestRebuild();}});
   host.querySelectorAll('button[data-t]').forEach(b=>b.onclick=()=>bldAddItem(b.dataset.t));
 }
 function bldAddItem(type){
@@ -5254,7 +5299,7 @@ function bldItem(){return bldWorld&&bldWorld.items.find(i=>i.id===bldItemId);}
 function bldLiveItem(){return wdItems.find(w=>w.id===bldItemId);}
 function bldRenderItemSel(){
   const sel=document.getElementById('bpItemSel');
-  sel.innerHTML=(bldWorld&&bldWorld.items.length)?bldWorld.items.map((i,n)=>`<option value="${i.id}"${i.id===bldItemId?' selected':''}>${n+1} · ${(ITEM_REGISTRY[i.type]||{}).name||i.type}</option>`).join(''):'<option value="">— none yet —</option>';
+  sel.innerHTML=(bldWorld&&bldWorld.items.length)?bldWorld.items.map((i,n)=>`<option value="${i.id}"${i.id===bldItemId?' selected':''}>${n+1} · ${i.type==='model'&&MODEL_LIB[(i.params||{}).model]?MODEL_LIB[i.params.model].name:((ITEM_REGISTRY[i.type]||{}).name||i.type)}</option>`).join(''):'<option value="">— none yet —</option>';
 }
 function bldLoadItem(){
   const it=bldItem(),ctl=document.getElementById('bpItemCtl');
@@ -5347,10 +5392,12 @@ qs('asTiles').querySelectorAll('button').forEach(b=>b.onclick=()=>{
   else if(a==='3d'){const g=qs('addGrid');if(g.style.display==='none'){quickRenderGrid();g.style.display='';}else g.style.display='none';}
   else if(a==='card'){sheetOpen(false);bldOpen();bldShowTab('cards');qs('bpCardAdd').click();setTimeout(()=>qs('bpTitle').focus(),60);}
 });
+function objectTiles(){return `<div class="bp-cat">Real objects</div>`+Object.keys(MODEL_LIB).map(k=>`<button data-m="${k}"><b>${MODEL_LIB[k].icon}</b>${MODEL_LIB[k].name}</button>`).join('');}
 function quickRenderGrid(){
   const host=qs('addGrid'),cats={};
-  for(const t in ITEM_REGISTRY){if(t==='label'||t==='billboard')continue;const d=ITEM_REGISTRY[t];(cats[d.cat]=cats[d.cat]||[]).push([t,d]);}
-  host.innerHTML=Object.keys(cats).map(c=>`<div class="bp-cat">${c}</div>`+cats[c].map(([t,d])=>`<button data-t="${t}"><b>${d.icon}</b>${d.name}</button>`).join('')).join('');
+  for(const t in ITEM_REGISTRY){if(t==='label'||t==='billboard'||t==='model')continue;const d=ITEM_REGISTRY[t];(cats[d.cat]=cats[d.cat]||[]).push([t,d]);}
+  host.innerHTML=objectTiles()+Object.keys(cats).map(c=>`<div class="bp-cat">${c==='Landmark'?'Shapes · landmark':c==='Deco'?'Shapes · deco':c}</div>`+cats[c].map(([t,d])=>`<button data-t="${t}"><b>${d.icon}</b>${d.name}</button>`).join('')).join('');
+  host.querySelectorAll('button[data-m]').forEach(b=>b.onclick=()=>quickAdd('model',{model:b.dataset.m}));
   host.querySelectorAll('button[data-t]').forEach(b=>b.onclick=()=>quickAdd(b.dataset.t));
 }
 /* photos: read from device, downscale so it stays snappy, store as a data URL */
